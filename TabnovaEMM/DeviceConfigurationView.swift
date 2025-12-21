@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DeviceConfigurationView: View {
     @Binding var isEnrolled: Bool
+    var onNavigateToAppUsage: () -> Void
     @State private var showMenu = false
     
     var body: some View {
@@ -158,11 +159,16 @@ struct DeviceConfigurationView: View {
                             MenuButton(title: "Device Info", icon: "info.circle") {
                                 showMenu = false
                             }
-                            
+
+                            MenuButton(title: "App Usage", icon: "hourglass.circle") {
+                                showMenu = false
+                                onNavigateToAppUsage()
+                            }
+
                             MenuButton(title: "Settings", icon: "gear") {
                                 showMenu = false
                             }
-                            
+
                             MenuButton(title: "About", icon: "questionmark.circle") {
                                 showMenu = false
                             }
@@ -245,6 +251,6 @@ struct MenuButton: View {
 
 struct DeviceConfigurationView_Previews: PreviewProvider {
     static var previews: some View {
-        DeviceConfigurationView(isEnrolled: .constant(true))
+        DeviceConfigurationView(isEnrolled: .constant(true), onNavigateToAppUsage: {})
     }
 }

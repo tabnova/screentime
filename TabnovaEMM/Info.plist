@@ -28,6 +28,8 @@
     <string>Camera access is required to scan QR codes for device enrollment in the MDM system.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Location access may be required if your IT administrator has enabled location tracking policies.</string>
+    <key>NSFamilyControlsUsageDescription</key>
+    <string>Screen Time access is required to monitor app usage and provide usage reports for enterprise management.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

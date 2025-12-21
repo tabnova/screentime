@@ -70,25 +70,9 @@ enum AppCategory: String, CaseIterable {
     }
 }
 
-// MARK: - Device Activity Monitor
-class AppUsageMonitor: DeviceActivityMonitor {
-    override func intervalDidStart(for activity: DeviceActivityName) {
-        super.intervalDidStart(for: activity)
-        // Called when monitoring interval starts
-    }
-
-    override func intervalDidEnd(for activity: DeviceActivityName) {
-        super.intervalDidEnd(for: activity)
-        // Called when monitoring interval ends
-    }
-
-    override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
-        super.eventDidReachThreshold(event, activity: activity)
-        // Called when a usage threshold is reached
-    }
-}
-
 // MARK: - App Usage Manager
+// Note: DeviceActivityMonitor is implemented in the DeviceActivityMonitorExtension target
+// The extension handles monitoring callbacks (intervalDidStart, intervalDidEnd, eventDidReachThreshold)
 class AppUsageManager: ObservableObject {
     static let shared = AppUsageManager()
 

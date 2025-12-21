@@ -17,6 +17,7 @@ struct ContentView: View {
         case welcome
         case enrollment
         case deviceConfig
+        case appUsage
     }
     
     var body: some View {
@@ -41,7 +42,11 @@ struct ContentView: View {
                     currentScreen = .deviceConfig
                 })
             case .deviceConfig:
-                DeviceConfigurationView(isEnrolled: $isEnrolled)
+                DeviceConfigurationView(isEnrolled: $isEnrolled, onNavigateToAppUsage: {
+                    currentScreen = .appUsage
+                })
+            case .appUsage:
+                AppUsageView(showMenu: .constant(false))
             }
         }
     }

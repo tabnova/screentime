@@ -9,6 +9,7 @@ import SwiftUI
 import FamilyControls
 import DeviceActivity
 import ManagedSettings
+import UserNotifications
 
 // MARK: - App Usage Data Model
 struct AppUsageData: Identifiable {
@@ -85,6 +86,7 @@ class AppUsageManager: ObservableObject {
 
     private let authorizationCenter = AuthorizationCenter.shared
     private let deviceActivityCenter = DeviceActivityCenter()
+    private var monitoredApplications: [String: Int] = [:] // bundleIdentifier: dailyLimitMinutes
 
     enum AuthorizationStatus {
         case notDetermined
@@ -170,6 +172,73 @@ class AppUsageManager: ObservableObject {
     func stopMonitoring() {
         let activityName = DeviceActivityName("TabnovaEMM.DailyActivity")
         deviceActivityCenter.stopMonitoring([activityName])
+    }
+
+    // MARK: - Monitor Applications with Thresholds
+    func startMonitoringApplications(_ applications: [(bundleIdentifier: String, dailyLimitMinutes: Int)]) {
+        guard isAuthorized else {
+            print("❌ Not authorized to monitor applications")
+            return
+        }
+
+        // Store applications for later reference
+        monitoredApplications.removeAll()
+        for app in applications {
+            monitoredApplications[app.bundleIdentifier] = app.dailyLimitMinutes
+        }
+
+        // Save to shared UserDefaults for extension access
+        if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
+            sharedDefaults.set(monitoredApplications, forKey: "monitoredApplications")
+            sharedDefaults.synchronize()
+            print("✅ Saved monitored applications to shared defaults")
+        }
+
+        // Create schedule for daily monitoring (24/7)
+        let schedule = DeviceActivitySchedule(
+            intervalStart: DateComponents(hour: 0, minute: 0),
+            intervalEnd: DateComponents(hour: 23, minute: 59),
+            repeats: true
+        )
+
+        let activityName = DeviceActivityName("TabnovaEMM.DailyActivity")
+
+        // Create events for each application at 5-minute intervals
+        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+
+        for (bundleIdentifier, dailyLimit) in applications {
+            print("📱 Setting up thresholds for: \(bundleIdentifier)")
+            print("   Daily limit: \(dailyLimit) minutes")
+
+            // Set up thresholds at 5-minute intervals up to the daily limit
+            let maxThresholds = min(dailyLimit / 5, 12) // Max 12 thresholds (60 minutes) or up to daily limit
+
+            for threshold in 1...maxThresholds {
+                let minutes = threshold * 5
+                let eventName = DeviceActivityEvent.Name("TabnovaEMM.\(bundleIdentifier).\(minutes)min")
+
+                // Create event with threshold
+                let event = DeviceActivityEvent(
+                    applications: [bundleIdentifier],
+                    threshold: DateComponents(minute: minutes)
+                )
+
+                events[eventName] = event
+                print("   ⏰ Set threshold at \(minutes) minutes")
+            }
+        }
+
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("✅ Created \(events.count) threshold events")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        do {
+            try deviceActivityCenter.startMonitoring(activityName, during: schedule, events: events)
+            print("✅ Started monitoring applications with thresholds")
+        } catch {
+            errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
+            print("❌ Failed to start monitoring: \(error)")
+        }
     }
 
     // MARK: - Load App Usage Data

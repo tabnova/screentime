@@ -11,8 +11,8 @@ import FamilyControls
 struct AppUsageView: View {
     @StateObject private var usageManager = AppUsageManager.shared
     @Binding var showMenu: Bool
+    var onNavigateToDeviceConfig: () -> Void
     @State private var selectedTimeRange: TimeRange = .today
-    @Environment(\.dismiss) private var dismiss
 
     enum TimeRange: String, CaseIterable {
         case today = "Today"
@@ -417,6 +417,6 @@ struct AppUsageRow: View {
 // MARK: - Preview
 struct AppUsageView_Previews: PreviewProvider {
     static var previews: some View {
-        AppUsageView(showMenu: .constant(false))
+        AppUsageView(showMenu: .constant(false), onNavigateToDeviceConfig: {})
     }
 }

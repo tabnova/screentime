@@ -10,6 +10,7 @@ import SwiftUI
 struct DeviceConfigurationView: View {
     @Binding var isEnrolled: Bool
     var onNavigateToAppUsage: () -> Void
+    var onNavigateToManagedConfig: () -> Void
     @State private var showMenu = false
     
     var body: some View {
@@ -165,6 +166,11 @@ struct DeviceConfigurationView: View {
                                 onNavigateToAppUsage()
                             }
 
+                            MenuButton(title: "Managed Config", icon: "slider.horizontal.3") {
+                                showMenu = false
+                                onNavigateToManagedConfig()
+                            }
+
                             MenuButton(title: "Settings", icon: "gear") {
                                 showMenu = false
                             }
@@ -251,6 +257,10 @@ struct MenuButton: View {
 
 struct DeviceConfigurationView_Previews: PreviewProvider {
     static var previews: some View {
-        DeviceConfigurationView(isEnrolled: .constant(true), onNavigateToAppUsage: {})
+        DeviceConfigurationView(
+            isEnrolled: .constant(true),
+            onNavigateToAppUsage: {},
+            onNavigateToManagedConfig: {}
+        )
     }
 }

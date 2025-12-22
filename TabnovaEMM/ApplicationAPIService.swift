@@ -133,6 +133,23 @@ class ApplicationAPIService: ObservableObject {
             return app
         }
 
+        // Add default YouTube Music entry if not present in the API response
+        let youtubeMusicBundleId = "com.google.ios.youtubemusic"
+        if !applications.contains(where: { $0.packageName == youtubeMusicBundleId }) {
+            let youtubeMusicApp = ApplicationData(
+                packageName: youtubeMusicBundleId,
+                dailyLimitTimeNumber: 10,  // 10 minutes daily limit
+                usedLimit: 0,
+                used: 0
+            )
+            applications.append(youtubeMusicApp)
+            print("📱 Added default: YouTube Music")
+            print("   ⏱️  Daily Limit: 10 minutes")
+            print("   📊 Used Limit: 0")
+            print("   ✅ Used: 0 minutes")
+            print("   ───────────────────────────────")
+        }
+
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("✅ Successfully loaded \(applications.count) applications")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

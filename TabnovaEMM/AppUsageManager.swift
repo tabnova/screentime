@@ -175,6 +175,8 @@ class AppUsageManager: ObservableObject {
     }
 
     // MARK: - Monitor Applications with Thresholds
+    // Note: The Screen Time API requires ApplicationTokens from FamilyActivityPicker, not bundle IDs
+    // This function stores the bundle IDs for reference but doesn't create per-app events
     func startMonitoringApplications(_ applications: [(bundleIdentifier: String, dailyLimitMinutes: Int)]) {
         guard isAuthorized else {
             print("❌ Not authorized to monitor applications")
@@ -203,29 +205,53 @@ class AppUsageManager: ObservableObject {
 
         let activityName = DeviceActivityName("TabnovaEMM.DailyActivity")
 
-        // Create events for each application at 5-minute intervals
+        // Note: To monitor specific apps with events, you need to use FamilyActivitySelection
+        // with ApplicationTokens obtained from FamilyActivityPicker
+        // For now, we'll start monitoring without app-specific events
+
+        do {
+            try deviceActivityCenter.startMonitoring(activityName, during: schedule)
+            print("✅ Started monitoring device activity")
+            print("⚠️  To monitor specific apps, integrate FamilyActivityPicker for ApplicationTokens")
+        } catch {
+            errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
+            print("❌ Failed to start monitoring: \(error)")
+        }
+    }
+
+    // MARK: - Monitor with Application Selection
+    // Use this method when you have a FamilyActivitySelection from FamilyActivityPicker
+    func startMonitoringWithSelection(_ selection: FamilyActivitySelection, thresholdMinutes: Int) {
+        guard isAuthorized else {
+            print("❌ Not authorized to monitor applications")
+            return
+        }
+
+        // Create schedule for daily monitoring (24/7)
+        let schedule = DeviceActivitySchedule(
+            intervalStart: DateComponents(hour: 0, minute: 0),
+            intervalEnd: DateComponents(hour: 23, minute: 59),
+            repeats: true
+        )
+
+        let activityName = DeviceActivityName("TabnovaEMM.DailyActivity")
+
+        // Create events for thresholds at 5-minute intervals
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+        let maxThresholds = min(thresholdMinutes / 5, 12) // Max 12 thresholds or up to limit
 
-        for (bundleIdentifier, dailyLimit) in applications {
-            print("📱 Setting up thresholds for: \(bundleIdentifier)")
-            print("   Daily limit: \(dailyLimit) minutes")
+        for threshold in 1...maxThresholds {
+            let minutes = threshold * 5
+            let eventName = DeviceActivityEvent.Name("TabnovaEMM.threshold.\(minutes)min")
 
-            // Set up thresholds at 5-minute intervals up to the daily limit
-            let maxThresholds = min(dailyLimit / 5, 12) // Max 12 thresholds (60 minutes) or up to daily limit
+            // Create event with ApplicationTokens from selection
+            let event = DeviceActivityEvent(
+                applications: selection.applicationTokens,
+                threshold: DateComponents(minute: minutes)
+            )
 
-            for threshold in 1...maxThresholds {
-                let minutes = threshold * 5
-                let eventName = DeviceActivityEvent.Name("TabnovaEMM.\(bundleIdentifier).\(minutes)min")
-
-                // Create event with threshold
-                let event = DeviceActivityEvent(
-                    applications: [bundleIdentifier],
-                    threshold: DateComponents(minute: minutes)
-                )
-
-                events[eventName] = event
-                print("   ⏰ Set threshold at \(minutes) minutes")
-            }
+            events[eventName] = event
+            print("   ⏰ Set threshold at \(minutes) minutes")
         }
 
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

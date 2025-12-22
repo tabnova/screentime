@@ -3,6 +3,7 @@ import SwiftUI
 struct ManagedConfigView: View {
     @StateObject private var configManager = ManagedConfigManager.shared
     @State private var showApplicationList = false
+    var onNavigateBack: (() -> Void)?
 
     var body: some View {
         NavigationView {
@@ -43,6 +44,15 @@ struct ManagedConfigView: View {
             }
             .padding()
             .navigationTitle("Managed Config")
+            .navigationBarItems(leading: Button(action: {
+                onNavigateBack?()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                    Text("Back")
+                }
+                .foregroundColor(Color(hex: "#1A9B8E"))
+            })
             .sheet(isPresented: $showApplicationList) {
                 ApplicationListView()
             }

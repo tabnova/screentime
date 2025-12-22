@@ -13,6 +13,7 @@ struct AppUsageView: View {
     @Binding var showMenu: Bool
     @State private var selectedTimeRange: TimeRange = .today
     @Environment(\.dismiss) private var dismiss
+    var onNavigateBack: (() -> Void)?
 
     enum TimeRange: String, CaseIterable {
         case today = "Today"
@@ -78,9 +79,13 @@ struct AppUsageView: View {
 
             HStack {
                 Button(action: {
-                    showMenu.toggle()
+                    if let onNavigateBack = onNavigateBack {
+                        onNavigateBack()
+                    } else {
+                        showMenu.toggle()
+                    }
                 }) {
-                    Image(systemName: "line.3.horizontal")
+                    Image(systemName: onNavigateBack != nil ? "chevron.left" : "line.3.horizontal")
                         .font(.system(size: 24))
                         .foregroundColor(.white)
                         .padding(.leading, 20)

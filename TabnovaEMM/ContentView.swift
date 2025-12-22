@@ -50,6 +50,7 @@ struct ContentView: View {
                     onEnrollmentComplete: {
                         isEnrolled = true
                         UserDefaults.standard.set(true, forKey: hasLaunchedKey)
+                        UserDefaults.standard.set("NON DEP", forKey: "enrollmentType")
                         currentScreen = .deviceConfig
                     },
                     onCancel: {

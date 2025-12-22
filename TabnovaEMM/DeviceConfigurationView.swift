@@ -16,6 +16,10 @@ struct DeviceConfigurationView: View {
     var onNavigateToAppUsage: () -> Void
     @StateObject private var deviceInfo = DeviceInfoManager()
 
+    private var enrollmentType: String {
+        UserDefaults.standard.string(forKey: "enrollmentType") ?? "NON DEP"
+    }
+
     var body: some View {
         ZStack {
             Color(hex: "E8E8E8")
@@ -66,6 +70,11 @@ struct DeviceConfigurationView: View {
 
                         // Status Row
                         InfoRow(label: "Status", value: isEnrolled ? "ENROLLED" : "NOT ENROLLED", valueColor: isEnrolled ? .green : .red)
+
+                        Divider().padding(.leading, 20)
+
+                        // Enrollment Type Row
+                        InfoRow(label: "Enrollment Type", value: enrollmentType, valueColor: Color(hex: "1A9B8E"))
 
                         Divider().padding(.leading, 20)
 

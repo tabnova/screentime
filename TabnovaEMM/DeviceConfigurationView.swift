@@ -12,6 +12,9 @@ struct DeviceConfigurationView: View {
     var onNavigateToAppUsage: () -> Void
     var onNavigateToManagedConfig: () -> Void
     @State private var showMenu = false
+    @StateObject private var commandService = DeviceCommandService()
+    @State private var showCommandAlert = false
+    @State private var commandAlertMessage = ""
     
     var body: some View {
         ZStack {
@@ -178,9 +181,17 @@ struct DeviceConfigurationView: View {
                             MenuButton(title: "About", icon: "questionmark.circle") {
                                 showMenu = false
                             }
+
+                            Divider()
+                                .padding(.vertical, 10)
+
+                            MenuButton(title: "Send YES Command", icon: "checkmark.circle.fill") {
+                                showMenu = false
+                                sendYesCommand()
+                            }
                         }
                         .padding(.top, 20)
-                        
+
                         Spacer()
                     }
                     .frame(width: 280)
@@ -192,8 +203,24 @@ struct DeviceConfigurationView: View {
             }
         }
         .animation(.easeInOut, value: showMenu)
+        .alert("Command Status", isPresented: $showCommandAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(commandAlertMessage)
+        }
     }
-    
+
+    private func sendYesCommand() {
+        commandService.sendYesCommand { success in
+            if success {
+                commandAlertMessage = commandService.successMessage ?? "YES command sent successfully"
+            } else {
+                commandAlertMessage = commandService.errorMessage ?? "Failed to send YES command"
+            }
+            showCommandAlert = true
+        }
+    }
+
     private func getModelName() -> String {
         var systemInfo = utsname()
         uname(&systemInfo)

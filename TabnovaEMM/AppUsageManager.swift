@@ -179,21 +179,33 @@ class AppUsageManager: ObservableObject {
     // This function stores the bundle IDs for reference but doesn't create per-app events
     func startMonitoringApplications(_ applications: [(bundleIdentifier: String, dailyLimitMinutes: Int)]) {
         guard isAuthorized else {
-            print("❌ Not authorized to monitor applications")
+            logError("Not authorized to monitor applications")
             return
         }
+
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("Starting Application Monitoring")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Store applications for later reference
         monitoredApplications.removeAll()
         for app in applications {
             monitoredApplications[app.bundleIdentifier] = app.dailyLimitMinutes
+            logApp("\(app.bundleIdentifier)")
+            logTime("Daily Limit: \(app.dailyLimitMinutes) minutes")
+
+            // Log 5-minute thresholds that would be monitored
+            let numThresholds = min(app.dailyLimitMinutes / 5, 12)
+            if numThresholds > 0 {
+                logInfo("  Thresholds: 5, 10 minutes (up to \(app.dailyLimitMinutes) min)")
+            }
         }
 
         // Save to shared UserDefaults for extension access
         if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
             sharedDefaults.set(monitoredApplications, forKey: "monitoredApplications")
             sharedDefaults.synchronize()
-            print("✅ Saved monitored applications to shared defaults")
+            logSuccess("Saved \(monitoredApplications.count) apps to shared storage")
         }
 
         // Create schedule for daily monitoring (24/7)
@@ -211,11 +223,12 @@ class AppUsageManager: ObservableObject {
 
         do {
             try deviceActivityCenter.startMonitoring(activityName, during: schedule)
-            print("✅ Started monitoring device activity")
-            print("⚠️  To monitor specific apps, integrate FamilyActivityPicker for ApplicationTokens")
+            logSuccess("Started monitoring device activity")
+            logWarning("Note: Full threshold monitoring requires FamilyActivityPicker integration")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         } catch {
             errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
-            print("❌ Failed to start monitoring: \(error)")
+            logError("Failed to start monitoring: \(error.localizedDescription)")
         }
     }
 

@@ -19,6 +19,8 @@ class ManagedConfigManager: ObservableObject {
         // In a real MDM scenario, this would read from managed configuration
         // For now, we'll check UserDefaults first, then try to read from MDM
 
+        logInfo("Loading managed configuration...")
+
         // Set default values if not already configured
         let defaultAuth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NjEzYmNmZDg2YjFjZjg4YWIyMjliODciLCJlbWFpbCI6InJhcmFqYW5AZ21haWwuY29tIiwiaWF0IjoxNzY2MzgyNDM2LCJleHAiOjE5NDYzODI0MzZ9.ZavOiP_xZkQchbBdXmPrOTvqUVjmRlSrGu3W381uLw0"
         let defaultEmail = "rarajan@gmail.com"
@@ -28,57 +30,62 @@ class ManagedConfigManager: ObservableObject {
         // Try to read from UserDefaults (for testing), use defaults if not set
         if let storedAuth = userDefaults.string(forKey: "Authorization"), !storedAuth.isEmpty {
             authorization = storedAuth
+            logKey("Using stored Authorization token")
         } else {
             authorization = defaultAuth
             userDefaults.set(defaultAuth, forKey: "Authorization")
-            print("✅ Set default Authorization")
+            logSuccess("Set default Authorization token")
         }
 
         if let storedEmail = userDefaults.string(forKey: "email"), !storedEmail.isEmpty {
             email = storedEmail
+            logInfo("Using stored email: \(storedEmail)")
         } else {
             email = defaultEmail
             userDefaults.set(defaultEmail, forKey: "email")
-            print("✅ Set default email: \(defaultEmail)")
+            logSuccess("Set default email: \(defaultEmail)")
         }
 
         if let storedProfileId = userDefaults.string(forKey: "profileId"), !storedProfileId.isEmpty {
             profileId = storedProfileId
+            logInfo("Using stored profileId: \(storedProfileId)")
         } else {
             profileId = defaultProfileId
             userDefaults.set(defaultProfileId, forKey: "profileId")
-            print("✅ Set default profileId: \(defaultProfileId)")
+            logSuccess("Set default profileId: \(defaultProfileId)")
         }
 
         if let storedSerialNumber = userDefaults.string(forKey: "serialNumber"), !storedSerialNumber.isEmpty {
             serialNumber = storedSerialNumber
+            logInfo("Using stored serialNumber: \(storedSerialNumber)")
         } else {
             serialNumber = defaultSerialNumber
             userDefaults.set(defaultSerialNumber, forKey: "serialNumber")
-            print("✅ Set default serialNumber: \(defaultSerialNumber)")
+            logSuccess("Set default serialNumber: \(defaultSerialNumber)")
         }
 
         // Try to read from managed configuration (MDM) - this will override defaults
         if let managedConfig = UserDefaults.standard.dictionary(forKey: "com.apple.configuration.managed") {
+            logInfo("Reading MDM configuration...")
             if let auth = managedConfig["Authorization"] as? String {
                 authorization = auth
                 userDefaults.set(auth, forKey: "Authorization")
-                print("✅ Received Authorization from MDM")
+                logSuccess("Received Authorization from MDM")
             }
             if let emailValue = managedConfig["email"] as? String {
                 email = emailValue
                 userDefaults.set(emailValue, forKey: "email")
-                print("✅ Received email from MDM: \(emailValue)")
+                logSuccess("Received email from MDM: \(emailValue)")
             }
             if let profileIdValue = managedConfig["profileId"] as? String {
                 profileId = profileIdValue
                 userDefaults.set(profileIdValue, forKey: "profileId")
-                print("✅ Received profileId from MDM: \(profileIdValue)")
+                logSuccess("Received profileId from MDM: \(profileIdValue)")
             }
             if let serialNumberValue = managedConfig["serialNumber"] as? String {
                 serialNumber = serialNumberValue
                 userDefaults.set(serialNumberValue, forKey: "serialNumber")
-                print("✅ Received serialNumber from MDM: \(serialNumberValue)")
+                logSuccess("Received serialNumber from MDM: \(serialNumberValue)")
             }
         }
 
@@ -90,35 +97,34 @@ class ManagedConfigManager: ObservableObject {
         if let auth = authorization {
             self.authorization = auth
             userDefaults.set(auth, forKey: "Authorization")
-            print("✅ Updated Authorization: \(auth)")
+            logSuccess("Updated Authorization")
         }
         if let emailValue = email {
             self.email = emailValue
             userDefaults.set(emailValue, forKey: "email")
-            print("✅ Updated email: \(emailValue)")
+            logSuccess("Updated email: \(emailValue)")
         }
         if let profileIdValue = profileId {
             self.profileId = profileIdValue
             userDefaults.set(profileIdValue, forKey: "profileId")
-            print("✅ Updated profileId: \(profileIdValue)")
+            logSuccess("Updated profileId: \(profileIdValue)")
         }
         if let serialNumberValue = serialNumber {
             self.serialNumber = serialNumberValue
             userDefaults.set(serialNumberValue, forKey: "serialNumber")
-            print("✅ Updated serialNumber: \(serialNumberValue)")
+            logSuccess("Updated serialNumber: \(serialNumberValue)")
         }
 
         printConfiguration()
     }
 
     func printConfiguration() {
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("📋 Managed Configuration:")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("Authorization: \(authorization.isEmpty ? "Not set" : authorization)")
-        print("Email: \(email.isEmpty ? "Not set" : email)")
-        print("Profile ID: \(profileId.isEmpty ? "Not set" : profileId)")
-        print("Serial Number: \(serialNumber.isEmpty ? "Not set" : serialNumber)")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("Managed Configuration:")
+        logKey("Authorization: \(authorization.isEmpty ? "Not set" : "***" + String(authorization.suffix(20)))")
+        logInfo("Email: \(email.isEmpty ? "Not set" : email)")
+        logInfo("Profile ID: \(profileId.isEmpty ? "Not set" : profileId)")
+        logInfo("Serial Number: \(serialNumber.isEmpty ? "Not set" : serialNumber)")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 }

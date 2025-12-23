@@ -16,14 +16,14 @@ class DeviceCommandService: ObservableObject {
     func sendYesCommand(completion: ((Bool) -> Void)? = nil) {
         guard !configManager.profileId.isEmpty else {
             errorMessage = "Profile ID is not set in managed configuration"
-            print("❌ Error: Profile ID is not set")
+            logError("Profile ID is not set for YES command")
             completion?(false)
             return
         }
 
         guard !configManager.authorization.isEmpty else {
             errorMessage = "Authorization token is not set in managed configuration"
-            print("❌ Error: Authorization token is not set")
+            logError("Authorization token is not set for YES command")
             completion?(false)
             return
         }
@@ -34,13 +34,13 @@ class DeviceCommandService: ObservableObject {
 
         let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/command?profile_id=\(configManager.profileId)&type=YES"
 
-        print("🌐 Sending YES command to: \(urlString)")
-        print("🔑 Authorization: \(configManager.authorization)")
+        logNetwork("Sending YES command to server")
+        logInfo("Profile ID: \(configManager.profileId)")
 
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
-            print("❌ Error: Invalid URL")
+            logError("Invalid URL for YES command")
             completion?(false)
             return
         }
@@ -60,12 +60,14 @@ class DeviceCommandService: ObservableObject {
             "timestamp": ISO8601DateFormatter().string(from: Date())
         ]
 
+        logData("Request body: \(deviceInfo)")
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: deviceInfo, options: [])
         } catch {
             errorMessage = "Failed to create request body: \(error.localizedDescription)"
             isLoading = false
-            print("❌ Error creating request body: \(error)")
+            logError("Error creating request body: \(error.localizedDescription)")
             completion?(false)
             return
         }
@@ -76,17 +78,17 @@ class DeviceCommandService: ObservableObject {
 
                 if let error = error {
                     self?.errorMessage = "Network error: \(error.localizedDescription)"
-                    print("❌ Network error: \(error.localizedDescription)")
+                    logError("Network error sending YES command: \(error.localizedDescription)")
                     completion?(false)
                     return
                 }
 
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("📡 HTTP Status Code: \(httpResponse.statusCode)")
+                    logNetwork("YES command HTTP Status: \(httpResponse.statusCode)")
 
                     guard (200...299).contains(httpResponse.statusCode) else {
                         self?.errorMessage = "Server error: HTTP \(httpResponse.statusCode)"
-                        print("❌ Server error: HTTP \(httpResponse.statusCode)")
+                        logError("Server error for YES command: HTTP \(httpResponse.statusCode)")
                         completion?(false)
                         return
                     }
@@ -94,15 +96,14 @@ class DeviceCommandService: ObservableObject {
 
                 guard let data = data else {
                     self?.errorMessage = "No data received"
-                    print("❌ No data received")
+                    logError("No data received from YES command")
                     completion?(false)
                     return
                 }
 
-                // Print raw response for debugging
+                // Log raw response for debugging
                 if let jsonString = String(data: data, encoding: .utf8) {
-                    print("📦 Raw JSON Response:")
-                    print(jsonString)
+                    logData("YES command response: \(jsonString)")
                 }
 
                 do {
@@ -111,18 +112,20 @@ class DeviceCommandService: ObservableObject {
 
                     if commandResponse.success {
                         self?.successMessage = commandResponse.message ?? "YES command sent successfully"
-                        print("✅ YES command sent successfully")
-                        print("✅ Response: \(commandResponse.message ?? "")")
+                        logSuccess("YES command sent successfully")
+                        if let message = commandResponse.message {
+                            logInfo("Response: \(message)")
+                        }
                         completion?(true)
                     } else {
                         self?.errorMessage = commandResponse.message ?? "Command failed"
-                        print("❌ Command failed: \(commandResponse.message ?? "")")
+                        logError("YES command failed: \(commandResponse.message ?? "Unknown error")")
                         completion?(false)
                     }
                 } catch {
                     // If the response doesn't match our expected format, consider it a success if we got a 2xx status
                     self?.successMessage = "YES command sent successfully"
-                    print("✅ YES command sent (assumed success based on HTTP status)")
+                    logSuccess("YES command sent (assumed success based on HTTP status)")
                     completion?(true)
                 }
             }

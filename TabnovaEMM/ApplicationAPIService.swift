@@ -165,29 +165,47 @@ class ApplicationAPIService: ObservableObject {
     func updateUsedTimesFromThresholdEvents() {
         guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
               let events = sharedDefaults.array(forKey: "thresholdEvents") as? [[String: Any]] else {
+            logWarning("No threshold events found in shared storage")
             return
         }
+
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("Processing Threshold Events")
+        logInfo("Found \(events.count) threshold events")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Group events by bundle identifier and sum up the threshold minutes
         var usedTimes: [String: Int] = [:]
 
         for event in events {
             guard let bundleId = event["bundleIdentifier"] as? String,
-                  let thresholdMinutes = event["thresholdMinutes"] as? Int else {
+                  let thresholdMinutes = event["thresholdMinutes"] as? Int,
+                  let timestamp = event["timestamp"] as? TimeInterval else {
                 continue
             }
+
+            let appName = event["applicationName"] as? String ?? bundleId
+            let date = Date(timeIntervalSince1970: timestamp)
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm:ss"
+
+            logEvent("Threshold hit: \(appName) at \(formatter.string(from: date)) - \(thresholdMinutes) min")
 
             usedTimes[bundleId, default: 0] = thresholdMinutes
         }
 
         // Update applications with the used times
+        var updatedCount = 0
         for (index, app) in applications.enumerated() {
             if let usedTime = usedTimes[app.packageName] {
                 applications[index].used = usedTime
-                logEvent("Updated used time for \(app.packageName): \(usedTime) minutes")
+                logSuccess("Updated \(app.packageName): used = \(usedTime) min")
+                updatedCount += 1
             }
         }
 
-        logInfo("Updated used times from \(events.count) threshold events")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logSuccess("Updated \(updatedCount) apps from \(events.count) threshold events")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 }

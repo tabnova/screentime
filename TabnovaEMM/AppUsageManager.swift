@@ -236,9 +236,14 @@ class AppUsageManager: ObservableObject {
     // Use this method when you have a FamilyActivitySelection from FamilyActivityPicker
     func startMonitoringWithSelection(_ selection: FamilyActivitySelection, thresholdMinutes: Int) {
         guard isAuthorized else {
-            print("❌ Not authorized to monitor applications")
+            logError("Not authorized to monitor applications")
             return
         }
+
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logSuccess("Starting Monitoring with FamilyActivityPicker Selection")
+        logInfo("Selected \(selection.applicationTokens.count) app(s)")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Create schedule for daily monitoring (24/7)
         let schedule = DeviceActivitySchedule(
@@ -253,6 +258,8 @@ class AppUsageManager: ObservableObject {
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
         let maxThresholds = min(thresholdMinutes / 5, 12) // Max 12 thresholds or up to limit
 
+        logInfo("Creating threshold events:")
+
         for threshold in 1...maxThresholds {
             let minutes = threshold * 5
             let eventName = DeviceActivityEvent.Name("TabnovaEMM.threshold.\(minutes)min")
@@ -264,19 +271,24 @@ class AppUsageManager: ObservableObject {
             )
 
             events[eventName] = event
-            print("   ⏰ Set threshold at \(minutes) minutes")
+            logTime("  ⏰ Threshold at \(minutes) minutes")
         }
 
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("✅ Created \(events.count) threshold events")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logSuccess("Created \(events.count) threshold events (5-min intervals)")
+        logInfo("Events will trigger at: 5min, 10min")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         do {
             try deviceActivityCenter.startMonitoring(activityName, during: schedule, events: events)
-            print("✅ Started monitoring applications with thresholds")
+            logSuccess("✅ Started monitoring applications with thresholds")
+            logInfo("When apps reach thresholds, you'll see:")
+            logInfo("  🔔 Event: 'Threshold hit: [App] at [time] - [X] min'")
+            logInfo("  ✅ Success: 'Updated [App]: used = [X] min'")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         } catch {
             errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
-            print("❌ Failed to start monitoring: \(error)")
+            logError("Failed to start monitoring: \(error.localizedDescription)")
         }
     }
 

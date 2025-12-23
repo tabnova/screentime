@@ -10,7 +10,8 @@ import SwiftUI
 struct ContentView: View {
     @State private var showSplash = true
     @State private var currentScreen: AppScreen = .splash
-    @State private var isEnrolled = false
+    @AppStorage("isEnrolled") private var isEnrolled: Bool = false
+    @AppStorage("hasAgreedToTerms") private var hasAgreedToTerms: Bool = false
     
     enum AppScreen {
         case splash
@@ -30,12 +31,18 @@ struct ContentView: View {
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                             withAnimation {
-                                currentScreen = .welcome
+                                // Skip to device config if already enrolled
+                                if isEnrolled {
+                                    currentScreen = .deviceConfig
+                                } else {
+                                    currentScreen = .welcome
+                                }
                             }
                         }
                     }
             case .welcome:
                 WelcomeView(onContinue: {
+                    hasAgreedToTerms = true
                     currentScreen = .enrollment
                 })
             case .enrollment:
@@ -57,11 +64,16 @@ struct ContentView: View {
                     }
                 )
             case .appUsage:
-                AppUsageView(showMenu: .constant(false))
+                AppUsageView(showMenu: .constant(false), onNavigateBack: {
+                    currentScreen = .deviceConfig
+                })
             case .managedConfig:
                 ManagedConfigView()
             case .logs:
                 LogView()
+                ManagedConfigView(onNavigateBack: {
+                    currentScreen = .deviceConfig
+                })
             }
         }
     }

@@ -28,13 +28,13 @@ class ApplicationAPIService: ObservableObject {
     func fetchApplicationList() {
         guard !configManager.profileId.isEmpty else {
             errorMessage = "Profile ID is not set in managed configuration"
-            print("❌ Error: Profile ID is not set")
+            logError("Profile ID is not set")
             return
         }
 
         guard !configManager.authorization.isEmpty else {
             errorMessage = "Authorization token is not set in managed configuration"
-            print("❌ Error: Authorization token is not set")
+            logError("Authorization token is not set")
             return
         }
 
@@ -43,13 +43,13 @@ class ApplicationAPIService: ObservableObject {
 
         let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/application/list?profile_id=\(configManager.profileId)&type=GET"
 
-        print("🌐 Fetching application list from: \(urlString)")
-        print("🔑 Authorization: \(configManager.authorization)")
+        logNetwork("Fetching application list from API")
+        logKey("Using profile ID: \(configManager.profileId)")
 
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
-            print("❌ Error: Invalid URL")
+            logError("Invalid URL")
             return
         }
 
@@ -64,30 +64,29 @@ class ApplicationAPIService: ObservableObject {
 
                 if let error = error {
                     self?.errorMessage = "Network error: \(error.localizedDescription)"
-                    print("❌ Network error: \(error.localizedDescription)")
+                    logError("Network error: \(error.localizedDescription)")
                     return
                 }
 
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("📡 HTTP Status Code: \(httpResponse.statusCode)")
+                    logNetwork("HTTP Status Code: \(httpResponse.statusCode)")
 
                     guard (200...299).contains(httpResponse.statusCode) else {
                         self?.errorMessage = "Server error: HTTP \(httpResponse.statusCode)"
-                        print("❌ Server error: HTTP \(httpResponse.statusCode)")
+                        logError("Server error: HTTP \(httpResponse.statusCode)")
                         return
                     }
                 }
 
                 guard let data = data else {
                     self?.errorMessage = "No data received"
-                    print("❌ No data received")
+                    logError("No data received")
                     return
                 }
 
-                // Print raw response for debugging
+                // Log raw response for debugging
                 if let jsonString = String(data: data, encoding: .utf8) {
-                    print("📦 Raw JSON Response:")
-                    print(jsonString)
+                    logData("Raw JSON Response: \(jsonString)")
                 }
 
                 do {
@@ -105,30 +104,32 @@ class ApplicationAPIService: ObservableObject {
                     }
                 } catch {
                     self?.errorMessage = "Failed to parse response: \(error.localizedDescription)"
-                    print("❌ Parsing error: \(error)")
+                    logError("Parsing error: \(error.localizedDescription)")
                 }
             }
         }.resume()
     }
 
     private func parseApplicationList(_ appList: [ApplicationResponse]) {
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("📋 Parsed Application List:")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("Parsing Application List from server")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         applications = appList.map { response in
+            // Set default 10-minute limit if no limit is specified or limit is 0
+            let dailyLimit = response.dailyLimitTimeNumber > 0 ? response.dailyLimitTimeNumber : 10
+
             let app = ApplicationData(
                 packageName: response.packageName,
-                dailyLimitTimeNumber: response.dailyLimitTimeNumber,
+                dailyLimitTimeNumber: dailyLimit,
                 usedLimit: response.usedLimit,
                 used: 0
             )
 
-            print("📱 Package: \(app.packageName)")
-            print("   ⏱️  Daily Limit: \(app.dailyLimitTimeNumber) minutes")
-            print("   📊 Used Limit: \(app.usedLimit)")
-            print("   ✅ Used: \(app.used) minutes")
-            print("   ───────────────────────────────")
+            logApp("Package: \(app.packageName)")
+            logTime("Daily Limit: \(app.dailyLimitTimeNumber) minutes")
+            logData("Used Limit: \(app.usedLimit)")
+            logData("Current Used: \(app.used) minutes")
 
             return app
         }
@@ -143,16 +144,12 @@ class ApplicationAPIService: ObservableObject {
                 used: 0
             )
             applications.append(youtubeMusicApp)
-            print("📱 Added default: YouTube Music")
-            print("   ⏱️  Daily Limit: 10 minutes")
-            print("   📊 Used Limit: 0")
-            print("   ✅ Used: 0 minutes")
-            print("   ───────────────────────────────")
+            logApp("Added default: YouTube Music")
+            logTime("Daily Limit: 10 minutes")
         }
 
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("✅ Successfully loaded \(applications.count) applications")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logSuccess("Successfully loaded \(applications.count) applications")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Set up monitoring with thresholds for each application
         let appsToMonitor = applications.map { app in
@@ -160,5 +157,37 @@ class ApplicationAPIService: ObservableObject {
         }
 
         AppUsageManager.shared.startMonitoringApplications(appsToMonitor)
+
+        // Update used times from threshold events
+        updateUsedTimesFromThresholdEvents()
+    }
+
+    func updateUsedTimesFromThresholdEvents() {
+        guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
+              let events = sharedDefaults.array(forKey: "thresholdEvents") as? [[String: Any]] else {
+            return
+        }
+
+        // Group events by bundle identifier and sum up the threshold minutes
+        var usedTimes: [String: Int] = [:]
+
+        for event in events {
+            guard let bundleId = event["bundleIdentifier"] as? String,
+                  let thresholdMinutes = event["thresholdMinutes"] as? Int else {
+                continue
+            }
+
+            usedTimes[bundleId, default: 0] = thresholdMinutes
+        }
+
+        // Update applications with the used times
+        for (index, app) in applications.enumerated() {
+            if let usedTime = usedTimes[app.packageName] {
+                applications[index].used = usedTime
+                logEvent("Updated used time for \(app.packageName): \(usedTime) minutes")
+            }
+        }
+
+        logInfo("Updated used times from \(events.count) threshold events")
     }
 }

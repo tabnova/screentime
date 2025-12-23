@@ -11,6 +11,7 @@ struct DeviceConfigurationView: View {
     @Binding var isEnrolled: Bool
     var onNavigateToAppUsage: () -> Void
     var onNavigateToManagedConfig: () -> Void
+    var onNavigateToLogs: () -> Void
     @State private var showMenu = false
     @StateObject private var commandService = DeviceCommandService()
     @State private var showCommandAlert = false
@@ -174,6 +175,11 @@ struct DeviceConfigurationView: View {
                                 onNavigateToManagedConfig()
                             }
 
+                            MenuButton(title: "Logs", icon: "list.bullet.rectangle") {
+                                showMenu = false
+                                onNavigateToLogs()
+                            }
+
                             MenuButton(title: "Settings", icon: "gear") {
                                 showMenu = false
                             }
@@ -287,7 +293,8 @@ struct DeviceConfigurationView_Previews: PreviewProvider {
         DeviceConfigurationView(
             isEnrolled: .constant(true),
             onNavigateToAppUsage: {},
-            onNavigateToManagedConfig: {}
+            onNavigateToManagedConfig: {},
+            onNavigateToLogs: {}
         )
     }
 }

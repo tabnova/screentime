@@ -1,9 +1,15 @@
 import SwiftUI
+import FamilyControls
+import ManagedSettings
 
 struct ManagedConfigView: View {
     @StateObject private var configManager = ManagedConfigManager.shared
     @StateObject private var apiService = ApplicationAPIService()
     @StateObject private var shieldManager = ShieldManager.shared
+    @StateObject private var appUsageManager = AppUsageManager.shared
+    @State private var selectedAppForMonitoring: ApplicationData?
+    @State private var showFamilyActivityPicker = false
+    @State private var monitoredAppsTokens: [String: String] = [:] // bundleId -> token string
     var onNavigateBack: (() -> Void)?
 
     var body: some View {
@@ -160,7 +166,22 @@ struct ManagedConfigView: View {
 
                                 // Application Rows
                                 ForEach(Array(apiService.applications.enumerated()), id: \.offset) { index, app in
-                                    ApplicationRow(application: app)
+                                    ApplicationRow(
+                                        application: app,
+                                        isMonitored: isAppMonitored(app.packageName),
+                                        isShielded: shieldManager.isAppShielded(app.packageName),
+                                        appToken: monitoredAppsTokens[app.packageName],
+                                        onStartMonitoring: {
+                                            selectedAppForMonitoring = app
+                                            showFamilyActivityPicker = true
+                                        },
+                                        onStopMonitoring: {
+                                            stopMonitoring(app: app)
+                                        },
+                                        onToggleShield: {
+                                            toggleShield(bundleId: app.packageName)
+                                        }
+                                    )
                                     if index < apiService.applications.count - 1 {
                                         Divider().padding(.leading, 20)
                                     }
@@ -235,6 +256,119 @@ struct ManagedConfigView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showFamilyActivityPicker) {
+            if let app = selectedAppForMonitoring {
+                FamilyActivityPickerSheet(
+                    isPresented: $showFamilyActivityPicker,
+                    onSelectionComplete: { selection in
+                        handleAppSelection(app: app, selection: selection)
+                    }
+                )
+            }
+        }
+        .onAppear {
+            loadMonitoredApps()
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func loadMonitoredApps() {
+        // Load token mappings from shared defaults
+        if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
+           let mappings = sharedDefaults.dictionary(forKey: "appTokenMappings") as? [String: String] {
+            monitoredAppsTokens = mappings
+        }
+    }
+
+    private func isAppMonitored(_ bundleId: String) -> Bool {
+        return monitoredAppsTokens[bundleId] != nil
+    }
+
+    private func handleAppSelection(app: ApplicationData, selection: FamilyActivitySelection) {
+        guard let token = selection.applicationTokens.first else {
+            NSLog("❌ No application token selected")
+            return
+        }
+
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("📱 Starting monitoring for: %@", app.packageName)
+        NSLog("⏱️  Daily Limit: %d minutes", app.dailyLimitTimeNumber)
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Start monitoring this app with its daily limit
+        appUsageManager.startMonitoringApp(
+            bundleId: app.packageName,
+            dailyLimitMinutes: app.dailyLimitTimeNumber,
+            token: token,
+            displayName: app.packageName
+        )
+
+        // Store the token
+        monitoredAppsTokens[app.packageName] = String(describing: token)
+
+        NSLog("✅ Started monitoring %@ with %d-minute limit", app.packageName, app.dailyLimitTimeNumber)
+    }
+
+    private func stopMonitoring(app: ApplicationData) {
+        NSLog("🛑 Stopping monitoring for: %@", app.packageName)
+
+        appUsageManager.stopMonitoringApp(bundleId: app.packageName)
+        monitoredAppsTokens.removeValue(forKey: app.packageName)
+
+        // Also unshield if shielded
+        if shieldManager.isAppShielded(app.packageName) {
+            shieldManager.unshieldApp(bundleId: app.packageName)
+        }
+
+        NSLog("✅ Stopped monitoring %@", app.packageName)
+    }
+
+    private func toggleShield(bundleId: String) {
+        if shieldManager.isAppShielded(bundleId) {
+            shieldManager.unshieldApp(bundleId: bundleId)
+            NSLog("🔓 Unshielded: %@", bundleId)
+        } else {
+            // Shield the app manually
+            shieldManager.shieldedApps.insert(bundleId)
+            if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
+                sharedDefaults.set(Array(shieldManager.shieldedApps), forKey: "shieldedApps")
+
+                // Apply shield using the stored selection
+                if let selectionData = sharedDefaults.data(forKey: "monitoredSelection.\(bundleId)"),
+                   let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) {
+                    let store = ManagedSettingsStore(named: ManagedSettingsStore.Name(bundleId))
+                    store.shield.applications = selection.applicationTokens
+                    NSLog("🛡️ Shielded: %@", bundleId)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - FamilyActivityPicker Sheet
+struct FamilyActivityPickerSheet: View {
+    @Binding var isPresented: Bool
+    @State private var selection = FamilyActivitySelection()
+    let onSelectionComplete: (FamilyActivitySelection) -> Void
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                FamilyActivityPicker(selection: $selection)
+            }
+            .navigationTitle("Select Application")
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    isPresented = false
+                },
+                trailing: Button("Done") {
+                    onSelectionComplete(selection)
+                    isPresented = false
+                }
+                .disabled(selection.applicationTokens.isEmpty)
+            )
         }
     }
 }
@@ -338,62 +472,124 @@ struct ConfigRow: View {
 
 struct ApplicationRow: View {
     let application: ApplicationData
+    let isMonitored: Bool
+    let isShielded: Bool
+    let appToken: String?
+    let onStartMonitoring: () -> Void
+    let onStopMonitoring: () -> Void
+    let onToggleShield: () -> Void
 
     var body: some View {
-        HStack(spacing: 15) {
-            // App Icon Placeholder
-            Image(systemName: "app.fill")
-                .font(.system(size: 24))
-                .foregroundColor(Color(hex: "1A9B8E"))
-                .frame(width: 40, height: 40)
-                .background(Color(hex: "1A9B8E").opacity(0.1))
-                .cornerRadius(8)
-                .padding(.leading, 20)
+        VStack(spacing: 12) {
+            HStack(spacing: 15) {
+                // App Icon Placeholder
+                Image(systemName: "app.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(isMonitored ? Color(hex: "1A9B8E") : .gray)
+                    .frame(width: 40, height: 40)
+                    .background((isMonitored ? Color(hex: "1A9B8E") : Color.gray).opacity(0.1))
+                    .cornerRadius(8)
+                    .padding(.leading, 20)
 
-            VStack(alignment: .leading, spacing: 4) {
-                // Package Name
-                Text(application.packageName)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.black)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    // Package Name
+                    Text(application.packageName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.black)
+                        .lineLimit(1)
 
-                // Daily Limit Info
-                HStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "1A9B8E"))
-                        Text("Limit: \(application.dailyLimitTimeNumber) min")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-
-                    if application.usedLimit > 0 {
+                    // Daily Limit Info
+                    HStack(spacing: 8) {
                         HStack(spacing: 4) {
-                            Image(systemName: "hourglass")
+                            Image(systemName: "clock.fill")
                                 .font(.system(size: 10))
-                                .foregroundColor(.orange)
-                            Text("Used: \(application.usedLimit) min")
+                                .foregroundColor(Color(hex: "1A9B8E"))
+                            Text("Limit: \(application.dailyLimitTimeNumber) min")
                                 .font(.system(size: 12))
                                 .foregroundColor(.gray)
                         }
+
+                        if application.usedLimit > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "hourglass")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.orange)
+                                Text("Used: \(application.usedLimit) min")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+
+                        if isMonitored {
+                            Image(systemName: "eye.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.green)
+                        }
+                    }
+
+                    // Token display (if monitored)
+                    if let token = appToken {
+                        Text("Token: \(token.prefix(30))...")
+                            .font(.system(size: 10))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Control Buttons
+            HStack(spacing: 10) {
+                if isMonitored {
+                    // Shield/Unshield Button
+                    Button(action: onToggleShield) {
+                        HStack(spacing: 4) {
+                            Image(systemName: isShielded ? "lock.open.fill" : "shield.fill")
+                                .font(.system(size: 12))
+                            Text(isShielded ? "Unshield" : "Shield")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(isShielded ? Color.green : Color.orange)
+                        .cornerRadius(15)
+                    }
+
+                    // Stop Monitoring Button
+                    Button(action: onStopMonitoring) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 12))
+                            Text("Stop")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red)
+                        .cornerRadius(15)
+                    }
+                } else {
+                    // Start Monitoring Button
+                    Button(action: onStartMonitoring) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 12))
+                            Text("Start Monitoring")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "1A9B8E"))
+                        .cornerRadius(15)
                     }
                 }
             }
-
-            Spacer()
-
-            // Status Badge
-            if application.used > 0 {
-                Text("\(application.used) min")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.orange)
-                    .cornerRadius(12)
-                    .padding(.trailing, 20)
-            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
         }
         .padding(.vertical, 12)
         .background(Color.white)

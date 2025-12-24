@@ -52,7 +52,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         logMessage("📝 Activity Name: \(activityName)")
 
         // Clean up the event name - remove Swift type wrapper if present
-        // e.g., 'Name(rawValue: "TabnovaEMM.threshold.5min")' -> 'TabnovaEMM.threshold.5min'
+        // e.g., 'Name(rawValue: "TabnovaEMM.com.google.ios.youtube.threshold.5min")' -> 'TabnovaEMM.com.google.ios.youtube.threshold.5min'
         if eventName.contains("rawValue:") {
             if let startIndex = eventName.range(of: "\"")?.upperBound,
                let endIndex = eventName.lastIndex(of: "\"") {
@@ -61,88 +61,127 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             }
         }
 
-        // Parse the event name to extract threshold minutes
-        // Format: "TabnovaEMM.threshold.{minutes}min"
+        // Parse the event name to extract bundle ID, event type, and threshold
+        // New Format: "TabnovaEMM.<bundleId>.(threshold|limit).<X>min"
+        // Example: "TabnovaEMM.com.google.ios.youtube.threshold.5min"
         let components = eventName.components(separatedBy: ".")
         logMessage("📝 Event Components: \(components)")
 
-        var thresholdMinutes = 5  // Default to 5 minutes if extraction fails
+        // Extract bundle ID - everything between "TabnovaEMM" and "threshold"/"limit"
+        var bundleId: String?
+        var eventType: String?
+        var thresholdMinutes = 5
 
-        // Extract minutes from event name
-        if let lastComponent = components.last, lastComponent.hasSuffix("min") {
-            logMessage("📝 Last Component: \(lastComponent)")
-            let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
-            logMessage("📝 Minutes String: '\(minutesString)'")
-            if let extractedMinutes = Int(minutesString), extractedMinutes > 0 {
-                thresholdMinutes = extractedMinutes
-                logMessage("✅ Extracted Threshold: \(thresholdMinutes) minutes")
-            } else {
-                logMessage("⚠️ Could not parse minutes, using default: \(thresholdMinutes) minutes")
+        if components.count >= 4 && components[0] == "TabnovaEMM" {
+            // Find "threshold" or "limit" index
+            if let thresholdIndex = components.firstIndex(of: "threshold") {
+                eventType = "threshold"
+                // Bundle ID is everything between TabnovaEMM and threshold
+                bundleId = components[1..<thresholdIndex].joined(separator: ".")
+                // Extract minutes from last component
+                if let lastComponent = components.last, lastComponent.hasSuffix("min") {
+                    let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
+                    if let extractedMinutes = Int(minutesString), extractedMinutes > 0 {
+                        thresholdMinutes = extractedMinutes
+                    }
+                }
+            } else if let limitIndex = components.firstIndex(of: "limit") {
+                eventType = "limit"
+                bundleId = components[1..<limitIndex].joined(separator: ".")
+                if let lastComponent = components.last, lastComponent.hasSuffix("min") {
+                    let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
+                    if let extractedMinutes = Int(minutesString), extractedMinutes > 0 {
+                        thresholdMinutes = extractedMinutes
+                    }
+                }
             }
-        } else {
-            logMessage("⚠️ Could not extract threshold from event name!")
-            logMessage("   Last component: \(components.last ?? "none")")
-            logMessage("   Using default: \(thresholdMinutes) minutes")
         }
+
+        logMessage("📱 Extracted Bundle ID: \(bundleId ?? "unknown")")
+        logMessage("🔖 Event Type: \(eventType ?? "unknown")")
+        logMessage("⏱️  Minutes: \(thresholdMinutes)")
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        // Check if this is a limit event (for shielding) or threshold event (for reporting)
-        let isLimitEvent = components.contains("limit")
-
-        if isLimitEvent {
+        // Handle limit event (shield the specific app)
+        if eventType == "limit", let appBundleId = bundleId {
             logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             logMessage("🛡️ DAILY LIMIT REACHED - APPLYING SHIELD")
             logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logMessage("📱 App: \(appBundleId)")
             logMessage("⏱️  Limit: \(thresholdMinutes) minutes")
             logMessage("🕒 Time: \(getCurrentTimestamp())")
             logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-            // Apply shield using stored FamilyActivitySelection
-            applyShield()
+            applyShieldToApp(bundleId: appBundleId)
 
-            logMessage("✅ Shield applied to all monitored applications")
+            logMessage("✅ Shield applied to \(appBundleId)")
             logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             return
         }
 
-        // Get the monitored applications from shared storage
-        guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
-              let monitoredApps = sharedDefaults.dictionary(forKey: "monitoredApplications") as? [String: Int],
-              !monitoredApps.isEmpty else {
-            logMessage("⚠️ No monitored applications found in shared storage")
-            logMessage("Please use 'Select Apps' menu to choose apps for monitoring")
+        // Handle threshold event (report usage for specific app)
+        if eventType == "threshold", let appBundleId = bundleId {
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logMessage("⚠️ THRESHOLD REACHED!")
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logMessage("📱 App: \(appBundleId)")
+            logMessage("⏱️  Threshold: \(thresholdMinutes) minutes")
+            logMessage("🕒 Time: \(getCurrentTimestamp())")
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            let applicationName = getAppNameFromBundleId(appBundleId)
+            logMessage("📝 Application Name: \(applicationName)")
+            logMessage("📊 Total Usage: \(thresholdMinutes) minutes")
+
+            // Save threshold event to shared storage for server reporting
+            saveThresholdEvent(bundleIdentifier: appBundleId,
+                              applicationName: applicationName,
+                              thresholdMinutes: thresholdMinutes)
+
+            logMessage("✅ Threshold event saved - will be reported to server")
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             return
         }
 
-        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logMessage("⚠️ THRESHOLD REACHED!")
-        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logMessage("⏱️  Threshold: \(thresholdMinutes) minutes")
-        logMessage("🕒 Time: \(getCurrentTimestamp())")
-        logMessage("📱 Monitored Apps: \(monitoredApps.count)")
-        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        // Since iOS doesn't tell us which specific app triggered the threshold,
-        // we'll report usage for ALL monitored apps
-        // The server will handle deduplication if needed
-        for (bundleIdentifier, _) in monitoredApps {
-            let applicationName = getAppNameFromBundleId(bundleIdentifier)
-
-            logMessage("📦 Reporting usage for: \(bundleIdentifier)")
-            logMessage("📱 Application: \(applicationName)")
-            logMessage("⏱️  Duration: \(thresholdMinutes) minutes")
-
-            // Save threshold event to shared storage
-            saveThresholdEvent(bundleIdentifier: bundleIdentifier,
-                              applicationName: applicationName,
-                              thresholdMinutes: thresholdMinutes)
-        }
-
+        logMessage("⚠️ Could not parse event name properly")
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     // MARK: - Shield Management
 
+    // Apply shield to a specific app
+    private func applyShieldToApp(bundleId: String) {
+        guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") else {
+            logMessage("⚠️ Could not access shared defaults")
+            return
+        }
+
+        // Load the selection for this specific app
+        guard let selectionData = sharedDefaults.data(forKey: "monitoredSelection.\(bundleId)"),
+              let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) else {
+            logMessage("⚠️ Could not load monitored selection for \(bundleId)")
+            return
+        }
+
+        logMessage("🛡️ Applying shield to \(bundleId)")
+
+        // Create a unique store for this app
+        let store = ManagedSettingsStore(named: ManagedSettingsStore.Name(bundleId))
+        store.shield.applications = selection.applicationTokens
+
+        // Mark this app as shielded
+        var shieldedApps = sharedDefaults.array(forKey: "shieldedApps") as? [String] ?? []
+        if !shieldedApps.contains(bundleId) {
+            shieldedApps.append(bundleId)
+            logMessage("  🛡️ Added \(bundleId) to shielded list")
+        }
+        sharedDefaults.set(shieldedApps, forKey: "shieldedApps")
+        sharedDefaults.synchronize()
+
+        logMessage("✅ Shield applied successfully to \(bundleId)")
+    }
+
+    // Legacy method - kept for backward compatibility
     private func applyShield() {
         guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
               let selectionData = sharedDefaults.data(forKey: "monitoredSelection"),

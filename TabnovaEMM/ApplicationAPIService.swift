@@ -81,7 +81,17 @@ class ApplicationAPIService: ObservableObject {
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            // Add crash protection - log before entering main queue
+            NSLog("🔵 URLSession callback received")
+
             DispatchQueue.main.async {
+                // Add crash protection for main queue operations
+                NSLog("🔵 Entered main queue")
+
+                defer {
+                    NSLog("🔵 Exiting main queue")
+                }
+
                 self?.isLoading = false
 
                 logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -123,28 +133,49 @@ class ApplicationAPIService: ObservableObject {
 
                 // Log raw response for debugging
                 if let jsonString = String(data: data, encoding: .utf8) {
+                    // Only log first 500 characters to avoid crash from huge JSON
+                    let preview = jsonString.prefix(500)
                     logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    logData("📄 Raw JSON Response:")
-                    logData(jsonString)
+                    logData("📄 Raw JSON Response (first 500 chars):")
+                    logData(String(preview))
+                    if jsonString.count > 500 {
+                        logData("... (\(jsonString.count - 500) more characters)")
+                    }
                     logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 }
+
+                NSLog("🔵 About to decode JSON")
 
                 do {
                     // Try to decode the response
                     let decoder = JSONDecoder()
 
+                    NSLog("🔵 Attempting APIResponse decode")
                     // Try different possible response formats
                     if let apiResponse = try? decoder.decode(APIResponse.self, from: data) {
+                        NSLog("🔵 Successfully decoded as APIResponse")
                         let appList = apiResponse.applications ?? apiResponse.data ?? []
                         logInfo("✅ Decoded as APIResponse with \(appList.count) apps")
+
+                        NSLog("🔵 About to call parseApplicationList")
                         self?.parseApplicationList(appList)
-                    } else if let appList = try? decoder.decode([ApplicationResponse].self, from: data) {
-                        logInfo("✅ Decoded as array with \(appList.count) apps")
-                        self?.parseApplicationList(appList)
+                        NSLog("🔵 Finished parseApplicationList")
                     } else {
-                        throw NSError(domain: "DecodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to decode response"])
+                        NSLog("🔵 Attempting array decode")
+                        if let appList = try? decoder.decode([ApplicationResponse].self, from: data) {
+                            NSLog("🔵 Successfully decoded as array")
+                            logInfo("✅ Decoded as array with \(appList.count) apps")
+
+                            NSLog("🔵 About to call parseApplicationList")
+                            self?.parseApplicationList(appList)
+                            NSLog("🔵 Finished parseApplicationList")
+                        } else {
+                            NSLog("🔵 Both decode attempts failed")
+                            throw NSError(domain: "DecodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to decode response"])
+                        }
                     }
                 } catch {
+                    NSLog("🔵 Caught error: \(error)")
                     self?.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     logError("❌ Parsing error: \(error.localizedDescription)")
                     logError("📄 Error details: \(error)")
@@ -155,19 +186,31 @@ class ApplicationAPIService: ObservableObject {
     }
 
     private func parseApplicationList(_ appList: [ApplicationResponse]) {
+        NSLog("🔵 parseApplicationList called with \(appList.count) apps")
+
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logInfo("Parsing Application List from server")
         logInfo("Received \(appList.count) applications from API")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+        NSLog("🔵 About to map applications")
+
         applications = appList.map { response in
+            NSLog("🔵 Mapping app: \(response.packageName)")
+
             // Parse dailyLimitTimeNumber from string to int
             // API returns it as string (e.g., "90", "45") or null
             var dailyLimit = 10  // Default 10 minutes
-            if let limitString = response.dailyLimitTimeNumber,
-               let parsedLimit = Int(limitString),
-               parsedLimit > 0 {
-                dailyLimit = parsedLimit
+            if let limitString = response.dailyLimitTimeNumber {
+                NSLog("🔵 Limit string: '\(limitString)'")
+                if let parsedLimit = Int(limitString), parsedLimit > 0 {
+                    dailyLimit = parsedLimit
+                    NSLog("🔵 Parsed limit: \(dailyLimit)")
+                } else {
+                    NSLog("🔵 Could not parse limit, using default 10")
+                }
+            } else {
+                NSLog("🔵 No limit string, using default 10")
             }
 
             let usedLimit = response.usedLimit ?? 0
@@ -179,8 +222,12 @@ class ApplicationAPIService: ObservableObject {
                 used: 0
             )
 
+            NSLog("🔵 Created app: \(app.packageName) with limit \(app.dailyLimitTimeNumber)")
+
             return app
         }
+
+        NSLog("🔵 Finished mapping \(applications.count) applications")
 
         // Display applications in table format
         logInfo("")

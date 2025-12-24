@@ -40,7 +40,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
         super.eventDidReachThreshold(event, activity: activity)
 
-        let eventName = String(describing: event)
+        var eventName = String(describing: event)
         let activityName = String(describing: activity)
 
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -49,23 +49,38 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         logMessage("📝 Raw Event Name: \(eventName)")
         logMessage("📝 Activity Name: \(activityName)")
 
+        // Clean up the event name - remove Swift type wrapper if present
+        // e.g., 'Name(rawValue: "TabnovaEMM.threshold.5min")' -> 'TabnovaEMM.threshold.5min'
+        if eventName.contains("rawValue:") {
+            if let startIndex = eventName.range(of: "\"")?.upperBound,
+               let endIndex = eventName.lastIndex(of: "\"") {
+                eventName = String(eventName[startIndex..<endIndex])
+                logMessage("📝 Cleaned Event Name: \(eventName)")
+            }
+        }
+
         // Parse the event name to extract threshold minutes
         // Format: "TabnovaEMM.threshold.{minutes}min"
         let components = eventName.components(separatedBy: ".")
         logMessage("📝 Event Components: \(components)")
 
-        var thresholdMinutes = 0
+        var thresholdMinutes = 5  // Default to 5 minutes if extraction fails
 
         // Extract minutes from event name
         if let lastComponent = components.last, lastComponent.hasSuffix("min") {
             logMessage("📝 Last Component: \(lastComponent)")
             let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
             logMessage("📝 Minutes String: '\(minutesString)'")
-            thresholdMinutes = Int(minutesString) ?? 0
-            logMessage("✅ Extracted Threshold: \(thresholdMinutes) minutes")
+            if let extractedMinutes = Int(minutesString), extractedMinutes > 0 {
+                thresholdMinutes = extractedMinutes
+                logMessage("✅ Extracted Threshold: \(thresholdMinutes) minutes")
+            } else {
+                logMessage("⚠️ Could not parse minutes, using default: \(thresholdMinutes) minutes")
+            }
         } else {
             logMessage("⚠️ Could not extract threshold from event name!")
             logMessage("   Last component: \(components.last ?? "none")")
+            logMessage("   Using default: \(thresholdMinutes) minutes")
         }
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 

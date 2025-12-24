@@ -83,7 +83,9 @@ struct ContentView: View {
                     currentScreen = .deviceConfig
                 })
             case .logs:
-                LogView()
+                LogView(onNavigateBack: {
+                    currentScreen = .deviceConfig
+                })
             case .appSelection:
                 AppSelectionView(onNavigateBack: {
                     currentScreen = .deviceConfig

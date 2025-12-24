@@ -425,7 +425,7 @@ class AppUsageManager: ObservableObject {
             logInfo("  🛡️ Shield: 'App blocked at \(dailyLimitMinutes) min'")
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         } catch {
-            errorMessage = "Failed to start monitoring: \(error.localizedDescription)")
+            errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
             logError("Failed to start monitoring: \(error.localizedDescription)")
         }
     }

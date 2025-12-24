@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import FamilyControls
 
 struct ContentView: View {
     @State private var showSplash = true
     @State private var currentScreen: AppScreen = .splash
     @AppStorage("isEnrolled") private var isEnrolled: Bool = false
     @AppStorage("hasAgreedToTerms") private var hasAgreedToTerms: Bool = false
+    @StateObject private var initService = AppInitializationService.shared
     
     enum AppScreen {
         case splash
@@ -30,13 +32,16 @@ struct ContentView: View {
             case .splash:
                 SplashView()
                     .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            withAnimation {
-                                // Skip to device config if already enrolled
-                                if isEnrolled {
-                                    currentScreen = .deviceConfig
-                                } else {
-                                    currentScreen = .welcome
+                        // Request Screen Time permission and initialize app
+                        initService.performFullInitialization { success in
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                withAnimation {
+                                    // Skip to device config if already enrolled
+                                    if isEnrolled {
+                                        currentScreen = .deviceConfig
+                                    } else {
+                                        currentScreen = .welcome
+                                    }
                                 }
                             }
                         }
@@ -49,6 +54,8 @@ struct ContentView: View {
             case .enrollment:
                 EnrollmentView(onEnrollmentComplete: {
                     isEnrolled = true
+                    // Initialize monitoring after enrollment
+                    initService.performFullInitialization { _ in }
                     currentScreen = .deviceConfig
                 })
             case .deviceConfig:
@@ -72,7 +79,9 @@ struct ContentView: View {
                     currentScreen = .deviceConfig
                 })
             case .managedConfig:
-                ManagedConfigView()
+                ManagedConfigView(onNavigateBack: {
+                    currentScreen = .deviceConfig
+                })
             case .logs:
                 LogView()
             case .appSelection:

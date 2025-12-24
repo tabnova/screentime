@@ -242,7 +242,9 @@ class ApplicationAPIService: ObservableObject {
         logInfo(separator)
         NSLog("🔵 Logged separator")
 
-        logInfo(String(format: "%-40s %-30s %-15s %-15s", "PACKAGE NAME", "DISPLAY NAME", "DAILY LIMIT", "USED LIMIT"))
+        // Use Swift string padding for column headers (avoid C-style format crash)
+        let header = "\("PACKAGE NAME".padding(toLength: 40, withPad: " ", startingAt: 0)) \("DISPLAY NAME".padding(toLength: 30, withPad: " ", startingAt: 0)) \("DAILY LIMIT".padding(toLength: 15, withPad: " ", startingAt: 0)) \("USED LIMIT".padding(toLength: 15, withPad: " ", startingAt: 0))"
+        logInfo(header)
         NSLog("🔵 Logged column headers")
 
         logInfo(separator)
@@ -264,11 +266,12 @@ class ApplicationAPIService: ObservableObject {
             let truncatedName = displayName.count > 28 ? String(displayName.prefix(26)) + ".." : displayName
 
             NSLog("🔵 About to format string")
-            let formattedLine = String(format: "%-40s %-30s %-15s %-15s",
-                          app.packageName,
-                          truncatedName,
-                          dailyLimitStr,
-                          usedLimitStr)
+            // Use Swift string padding instead of C-style format (%-40s causes crash)
+            let packagePadded = app.packageName.padding(toLength: 40, withPad: " ", startingAt: 0)
+            let namePadded = truncatedName.padding(toLength: 30, withPad: " ", startingAt: 0)
+            let limitPadded = dailyLimitStr.padding(toLength: 15, withPad: " ", startingAt: 0)
+            let usedPadded = usedLimitStr.padding(toLength: 15, withPad: " ", startingAt: 0)
+            let formattedLine = "\(packagePadded) \(namePadded) \(limitPadded) \(usedPadded)"
 
             NSLog("🔵 About to log formatted line")
             logData(formattedLine)

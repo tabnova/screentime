@@ -37,9 +37,9 @@ class AppUsageReportingService {
     // MARK: - Send usage report
     func sendUsageReport(packageName: String, thresholdMinutes: Int, completion: @escaping (Bool) -> Void) {
         logNetwork("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logNetwork("🌐 Sending Usage Report")
-        logNetwork("Package: \(packageName)")
-        logNetwork("Time: \(thresholdMinutes) min")
+        logNetwork("🌐 Sending Usage Report to Server")
+        logApp("📱 Package: \(packageName)")
+        logTime("⏱️  Threshold Hit: \(thresholdMinutes) min")
 
         // Get configuration
         let configManager = ManagedConfigManager.shared
@@ -53,15 +53,18 @@ class AppUsageReportingService {
             return
         }
 
-        // Update usage tracker
+        // Update usage tracker - this ADDS the new threshold time to previous total
         usageTracker.addUsageTime(packageName: packageName, thresholdMinutes: thresholdMinutes)
 
-        // Get updated usage data
+        // Get updated usage data (now includes cumulative total)
         guard let usageData = usageTracker.getUsageForToday(packageName: packageName) else {
             logError("❌ Failed to get usage data for \(packageName)")
             completion(false)
             return
         }
+
+        logInfo("📊 Cumulative Total to Send: \(usageData.totalMinutes) min (\(usageData.totalSeconds) sec)")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Get battery level
         UIDevice.current.isBatteryMonitoringEnabled = true
@@ -96,15 +99,21 @@ class AppUsageReportingService {
             applicationUsages: [appUsage]
         )
 
-        logData("📦 Request Payload:")
+        logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logData("📦 API Request Payload:")
         logData("  Email: \(email)")
         logData("  ProfileId: \(profileId)")
         logData("  SerialNumber: \(serialNumber)")
         logData("  Battery: \(batteryPercentage)%")
         logData("  App Version: \(appVersion)")
-        logData("  Package: \(packageName)")
-        logData("  Date: \(date)")
-        logData("  Total Time: \(usageData.totalMinutes) min (\(usageData.totalSeconds) sec)")
+        logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logApp("📱 Application Usage Entry:")
+        logData("  packageName: \(packageName)")
+        logData("  date: \(date)")
+        logData("  createdOn: \(createdOn)")
+        logSuccess("  timeInMinute: \(usageData.totalMinutes) min ⬅️ CUMULATIVE TOTAL")
+        logData("  (Total seconds: \(usageData.totalSeconds))")
+        logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Send POST request
         sendPostRequest(payload: requestPayload, completion: completion)

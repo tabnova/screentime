@@ -177,6 +177,14 @@ class ApplicationAPIService: ObservableObject {
         logInfo("Found \(events.count) threshold events")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+        // Log raw events for debugging
+        for (index, event) in events.enumerated() {
+            let bundleId = event["bundleIdentifier"] as? String ?? "unknown"
+            let appName = event["applicationName"] as? String ?? "unknown"
+            let minutes = event["thresholdMinutes"] as? Int ?? 0
+            logData("Event #\(index + 1): bundleId=\(bundleId), app=\(appName), threshold=\(minutes)min")
+        }
+
         // Group events by bundle identifier and track new events
         var usedTimes: [String: Int] = [:]
         var newEventsToReport: [(String, Int)] = []
@@ -185,6 +193,7 @@ class ApplicationAPIService: ObservableObject {
             guard let bundleId = event["bundleIdentifier"] as? String,
                   let thresholdMinutes = event["thresholdMinutes"] as? Int,
                   let timestamp = event["timestamp"] as? TimeInterval else {
+                logWarning("⚠️ Skipping invalid event: \(event)")
                 continue
             }
 
@@ -214,7 +223,14 @@ class ApplicationAPIService: ObservableObject {
         }
 
         // Report new events to server
+        if !newEventsToReport.isEmpty {
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logNetwork("📤 Sending \(newEventsToReport.count) usage report(s) to server")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        }
+
         for (packageName, thresholdMinutes) in newEventsToReport {
+            logApp("📱 Reporting: \(packageName) - \(thresholdMinutes) min")
             usageReporter.sendUsageReport(packageName: packageName, thresholdMinutes: thresholdMinutes) { success in
                 if success {
                     logSuccess("✅ Usage report sent for \(packageName)")

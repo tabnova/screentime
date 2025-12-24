@@ -31,9 +31,14 @@ class ApplicationAPIService: ObservableObject {
     private var processedEventIds: Set<String> = []
 
     func fetchApplicationList() {
+        // Log at the very start to confirm function is called
+        print("🚨🚨🚨 fetchApplicationList() CALLED 🚨🚨🚨")
+
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logNetwork("📡 FETCH APPLICATION LIST BUTTON PRESSED")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("🔍 Starting fetch application list process...")
+        logInfo("📋 Current app count: \(applications.count)")
 
         guard !configManager.profileId.isEmpty else {
             errorMessage = "Profile ID is not set in managed configuration"

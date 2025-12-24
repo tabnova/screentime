@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct LogView: View {
+    let onNavigateBack: () -> Void
+
     @StateObject private var logManager = LogManager.shared
     @State private var searchText = ""
     @State private var autoScroll = true
@@ -24,9 +26,38 @@ struct LogView: View {
                     Color(hex: "1A9B8E")
                         .ignoresSafeArea(edges: .top)
 
-                    Text("System Logs")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+                    HStack {
+                        Button(action: {
+                            onNavigateBack()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                        }
+                        .padding(.leading, 15)
+
+                        Spacer()
+
+                        Text("System Logs")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+
+                        Spacer()
+
+                        // Empty spacer to balance the back button
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(.clear)
+                        .padding(.trailing, 15)
+                    }
                 }
                 .frame(height: 100)
 
@@ -138,6 +169,6 @@ struct LogEntryView: View {
 
 struct LogView_Previews: PreviewProvider {
     static var previews: some View {
-        LogView()
+        LogView(onNavigateBack: {})
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct ManagedConfigView: View {
     @StateObject private var configManager = ManagedConfigManager.shared
     @StateObject private var apiService = ApplicationAPIService()
+    @StateObject private var shieldManager = ShieldManager.shared
     var onNavigateBack: (() -> Void)?
 
     var body: some View {
@@ -171,11 +172,122 @@ struct ManagedConfigView: View {
                             .padding(.horizontal, 20)
                         }
 
+                        // Shielded Apps Section (Blocked Apps)
+                        if !shieldManager.shieldedApps.isEmpty {
+                            VStack(spacing: 0) {
+                                // Section Header
+                                HStack {
+                                    Image(systemName: "shield.fill")
+                                        .foregroundColor(.orange)
+                                    Text("Blocked Applications")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.black)
+                                        .padding(.leading, 5)
+                                    Spacer()
+                                    Text("\(shieldManager.shieldedApps.count) blocked")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.orange)
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 15)
+                                .background(Color.white)
+
+                                Divider()
+
+                                // Shielded App Rows
+                                ForEach(Array(shieldManager.shieldedApps), id: \.self) { bundleId in
+                                    ShieldedAppRow(bundleId: bundleId, onUnshield: {
+                                        shieldManager.unshieldApp(bundleId: bundleId)
+                                    })
+                                    if bundleId != shieldManager.shieldedApps.last {
+                                        Divider().padding(.leading, 20)
+                                    }
+                                }
+
+                                // Unshield All Button
+                                if shieldManager.shieldedApps.count > 1 {
+                                    Divider()
+                                    Button(action: {
+                                        shieldManager.unshieldAll()
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "lock.open.fill")
+                                            Text("Unblock All Applications")
+                                                .font(.system(size: 16, weight: .semibold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(Color.green)
+                                        .cornerRadius(10)
+                                    }
+                                    .padding(20)
+                                    .background(Color.white)
+                                }
+                            }
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                            .padding(.horizontal, 20)
+                        }
+
                         Spacer().frame(height: 50)
                     }
                 }
             }
         }
+    }
+}
+
+struct ShieldedAppRow: View {
+    let bundleId: String
+    let onUnshield: () -> Void
+
+    var body: some View {
+        HStack(spacing: 15) {
+            // Shield Icon
+            Image(systemName: "shield.fill")
+                .font(.system(size: 24))
+                .foregroundColor(.orange)
+                .frame(width: 40, height: 40)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.leading, 20)
+
+            VStack(alignment: .leading, spacing: 4) {
+                // Bundle ID
+                Text(bundleId)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.black)
+                    .lineLimit(1)
+
+                // Status
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    Text("Blocked - Daily limit reached")
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray)
+                }
+            }
+
+            Spacer()
+
+            // Unblock Button
+            Button(action: onUnshield) {
+                Text("Unblock")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.green)
+                    .cornerRadius(20)
+            }
+            .padding(.trailing, 20)
+        }
+        .padding(.vertical, 12)
+        .background(Color.white)
     }
 }
 

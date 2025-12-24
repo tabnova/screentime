@@ -43,48 +43,52 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let eventName = String(describing: event)
         let activityName = String(describing: activity)
 
-        // Parse the event name to extract app bundle ID and threshold minutes
-        // Format: "TabnovaEMM.{bundleIdentifier}.{minutes}min"
+        // Parse the event name to extract threshold minutes
+        // Format: "TabnovaEMM.threshold.{minutes}min"
         let components = eventName.components(separatedBy: ".")
 
-        var bundleIdentifier = "Unknown"
         var thresholdMinutes = 0
 
-        if components.count >= 3 {
-            // Reconstruct bundle identifier (everything except first and last component)
-            bundleIdentifier = components[1..<components.count-1].joined(separator: ".")
-
-            // Extract minutes from last component (e.g., "5min" -> 5)
-            if let lastComponent = components.last,
-               lastComponent.hasSuffix("min") {
-                let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
-                thresholdMinutes = Int(minutesString) ?? 0
-            }
+        // Extract minutes from event name
+        if let lastComponent = components.last, lastComponent.hasSuffix("min") {
+            let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
+            thresholdMinutes = Int(minutesString) ?? 0
         }
 
-        // Get application name from monitored applications
-        var applicationName = bundleIdentifier
-        if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
-           let monitoredApps = sharedDefaults.dictionary(forKey: "monitoredApplications") as? [String: Int] {
-            // If we have a mapping of bundle identifiers to names, use it
-            // For now, we'll use the bundle identifier as the name
-            applicationName = getAppNameFromBundleId(bundleIdentifier)
+        // Get the monitored applications from shared storage
+        guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
+              let monitoredApps = sharedDefaults.dictionary(forKey: "monitoredApplications") as? [String: Int],
+              !monitoredApps.isEmpty else {
+            logMessage("⚠️ No monitored applications found in shared storage")
+            logMessage("Please use 'Select Apps' menu to choose apps for monitoring")
+            return
         }
 
-        // Log the threshold event
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logMessage("⚠️ THRESHOLD REACHED!")
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logMessage("📱 Application: \(applicationName)")
-        logMessage("📦 Package: \(bundleIdentifier)")
-        logMessage("⏱️  Duration: \(thresholdMinutes) minutes")
+        logMessage("⏱️  Threshold: \(thresholdMinutes) minutes")
         logMessage("🕒 Time: \(getCurrentTimestamp())")
+        logMessage("📱 Monitored Apps: \(monitoredApps.count)")
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        // Save threshold event to shared storage
-        saveThresholdEvent(bundleIdentifier: bundleIdentifier,
-                          applicationName: applicationName,
-                          thresholdMinutes: thresholdMinutes)
+        // Since iOS doesn't tell us which specific app triggered the threshold,
+        // we'll report usage for ALL monitored apps
+        // The server will handle deduplication if needed
+        for (bundleIdentifier, _) in monitoredApps {
+            let applicationName = getAppNameFromBundleId(bundleIdentifier)
+
+            logMessage("📦 Reporting usage for: \(bundleIdentifier)")
+            logMessage("📱 Application: \(applicationName)")
+            logMessage("⏱️  Duration: \(thresholdMinutes) minutes")
+
+            // Save threshold event to shared storage
+            saveThresholdEvent(bundleIdentifier: bundleIdentifier,
+                              applicationName: applicationName,
+                              thresholdMinutes: thresholdMinutes)
+        }
+
+        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     // MARK: - Helper Functions

@@ -43,17 +43,31 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let eventName = String(describing: event)
         let activityName = String(describing: activity)
 
+        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logMessage("🔍 DEBUG: Threshold Event Triggered")
+        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logMessage("📝 Raw Event Name: \(eventName)")
+        logMessage("📝 Activity Name: \(activityName)")
+
         // Parse the event name to extract threshold minutes
         // Format: "TabnovaEMM.threshold.{minutes}min"
         let components = eventName.components(separatedBy: ".")
+        logMessage("📝 Event Components: \(components)")
 
         var thresholdMinutes = 0
 
         // Extract minutes from event name
         if let lastComponent = components.last, lastComponent.hasSuffix("min") {
+            logMessage("📝 Last Component: \(lastComponent)")
             let minutesString = lastComponent.replacingOccurrences(of: "min", with: "")
+            logMessage("📝 Minutes String: '\(minutesString)'")
             thresholdMinutes = Int(minutesString) ?? 0
+            logMessage("✅ Extracted Threshold: \(thresholdMinutes) minutes")
+        } else {
+            logMessage("⚠️ Could not extract threshold from event name!")
+            logMessage("   Last component: \(components.last ?? "none")")
         }
+        logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Get the monitored applications from shared storage
         guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),

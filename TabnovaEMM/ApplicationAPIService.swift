@@ -8,13 +8,15 @@ struct APIResponse: Codable {
 
 struct ApplicationResponse: Codable {
     let packageName: String
-    let dailyLimitTimeNumber: Int
-    let usedLimit: Int
+    let dailyLimitTimeNumber: Int?  // Can be null
+    let usedLimit: Int?  // Can be null
+    let displayText: String?  // App display name
 
     enum CodingKeys: String, CodingKey {
         case packageName = "package_name"
         case dailyLimitTimeNumber = "dailyLimitTimeNumber"
-        case usedLimit
+        case usedLimit = "usedLimit"
+        case displayText = "display_text"
     }
 }
 
@@ -150,26 +152,45 @@ class ApplicationAPIService: ObservableObject {
     private func parseApplicationList(_ appList: [ApplicationResponse]) {
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logInfo("Parsing Application List from server")
+        logInfo("Received \(appList.count) applications from API")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         applications = appList.map { response in
             // Set default 10-minute limit if no limit is specified or limit is 0
-            let dailyLimit = response.dailyLimitTimeNumber > 0 ? response.dailyLimitTimeNumber : 10
+            let dailyLimit = (response.dailyLimitTimeNumber ?? 10) > 0 ? (response.dailyLimitTimeNumber ?? 10) : 10
+            let usedLimit = response.usedLimit ?? 0
 
             let app = ApplicationData(
                 packageName: response.packageName,
                 dailyLimitTimeNumber: dailyLimit,
-                usedLimit: response.usedLimit,
+                usedLimit: usedLimit,
                 used: 0
             )
 
-            logApp("Package: \(app.packageName)")
-            logTime("Daily Limit: \(app.dailyLimitTimeNumber) minutes")
-            logData("Used Limit: \(app.usedLimit)")
-            logData("Current Used: \(app.used) minutes")
-
             return app
         }
+
+        // Display applications in table format
+        logInfo("")
+        logSuccess("📋 PARSED APPLICATIONS TABLE")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo(String(format: "%-40s %-30s %-15s %-15s", "PACKAGE NAME", "DISPLAY NAME", "DAILY LIMIT", "USED LIMIT"))
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        for (index, response) in appList.enumerated() {
+            let app = applications[index]
+            let displayName = response.displayText ?? getAppNameFromBundleId(response.packageName)
+            let dailyLimitStr = "\(app.dailyLimitTimeNumber) min"
+            let usedLimitStr = app.usedLimit > 0 ? "\(app.usedLimit) min" : "0 min"
+
+            logData(String(format: "%-40s %-30s %-15s %-15s",
+                          app.packageName,
+                          displayName.truncated(to: 28),
+                          dailyLimitStr,
+                          usedLimitStr))
+        }
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logInfo("")
 
         // Add default YouTube Music entry if not present in the API response
         let youtubeMusicBundleId = "com.google.ios.youtubemusic"
@@ -290,5 +311,27 @@ class ApplicationAPIService: ObservableObject {
             logInfo("Reported \(newEventsToReport.count) new threshold events to server")
         }
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
+    // MARK: - Helper Methods
+
+    private func getAppNameFromBundleId(_ bundleId: String) -> String {
+        // Extract a readable name from bundle identifier
+        // e.g., "com.google.ios.youtubemusic" -> "YouTube Music"
+        if let lastComponent = bundleId.components(separatedBy: ".").last {
+            return lastComponent.capitalized
+        }
+        return bundleId
+    }
+}
+
+// MARK: - String Extension
+
+extension String {
+    func truncated(to length: Int, trailing: String = "...") -> String {
+        if self.count > length {
+            return String(self.prefix(length - trailing.count)) + trailing
+        }
+        return self
     }
 }

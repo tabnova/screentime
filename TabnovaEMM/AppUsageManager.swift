@@ -88,6 +88,14 @@ class AppUsageManager: ObservableObject {
     private let deviceActivityCenter = DeviceActivityCenter()
     private var monitoredApplications: [String: Int] = [:] // bundleIdentifier: dailyLimitMinutes
 
+    // Per-app monitoring data
+    struct MonitoredAppData: Codable {
+        let bundleId: String
+        let dailyLimitMinutes: Int
+        let tokenData: Data // Encoded ApplicationToken
+        let displayName: String?
+    }
+
     enum AuthorizationStatus {
         case notDetermined
         case authorized
@@ -229,6 +237,114 @@ class AppUsageManager: ObservableObject {
         } catch {
             errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
             logError("Failed to start monitoring: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Monitor Individual App
+    // Monitor a single app with its own threshold and limit events
+    func startMonitoringApp(bundleId: String, dailyLimitMinutes: Int, token: ApplicationToken, displayName: String?) {
+        guard isAuthorized else {
+            logError("Not authorized to monitor applications")
+            return
+        }
+
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🔵 Starting Per-App Monitoring")
+        NSLog("📱 Bundle ID: %@", bundleId)
+        NSLog("⏱️  Daily Limit: %d minutes", dailyLimitMinutes)
+        if let name = displayName {
+            NSLog("📝 Display Name: %@", name)
+        }
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Create schedule for daily monitoring (24/7)
+        let schedule = DeviceActivitySchedule(
+            intervalStart: DateComponents(hour: 0, minute: 0),
+            intervalEnd: DateComponents(hour: 23, minute: 59),
+            repeats: true
+        )
+
+        // Unique activity name for this app
+        let activityName = DeviceActivityName("TabnovaEMM.app.\(bundleId)")
+
+        // Create selection with just this app's token
+        var selection = FamilyActivitySelection()
+        selection.applicationTokens = Set([token])
+
+        // Store selection for this specific app
+        if let encoded = try? JSONEncoder().encode(selection),
+           let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
+            sharedDefaults.set(encoded, forKey: "monitoredSelection.\(bundleId)")
+            sharedDefaults.set(dailyLimitMinutes, forKey: "monitoredLimit.\(bundleId)")
+
+            // Store bundle ID to token mapping
+            var tokenMappings = sharedDefaults.dictionary(forKey: "appTokenMappings") as? [String: String] ?? [:]
+            tokenMappings[bundleId] = String(describing: token)
+            sharedDefaults.set(tokenMappings, forKey: "appTokenMappings")
+
+            sharedDefaults.synchronize()
+            NSLog("✅ Stored selection for %@", bundleId)
+        }
+
+        // Create threshold events every 5 minutes
+        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+        let maxThresholds = dailyLimitMinutes / 5
+
+        NSLog("📊 Creating threshold events:")
+        for threshold in 1...maxThresholds {
+            let minutes = threshold * 5
+            let eventName = DeviceActivityEvent.Name("TabnovaEMM.\(bundleId).threshold.\(minutes)min")
+
+            let event = DeviceActivityEvent(
+                applications: Set([token]),
+                threshold: DateComponents(minute: minutes)
+            )
+
+            events[eventName] = event
+            NSLog("  ⏰ Threshold at %d minutes", minutes)
+        }
+
+        // Add shield event at daily limit
+        let limitEventName = DeviceActivityEvent.Name("TabnovaEMM.\(bundleId).limit.\(dailyLimitMinutes)min")
+        let limitEvent = DeviceActivityEvent(
+            applications: Set([token]),
+            threshold: DateComponents(minute: dailyLimitMinutes)
+        )
+        events[limitEventName] = limitEvent
+        NSLog("  🛡️ Shield event at %d minutes (daily limit)", dailyLimitMinutes)
+
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("✅ Created %d events (%d thresholds + 1 shield)", events.count, maxThresholds)
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        do {
+            try deviceActivityCenter.startMonitoring(activityName, during: schedule, events: events)
+            NSLog("✅ Started monitoring %@ with %d threshold events", bundleId, maxThresholds)
+            NSLog("🔔 Each 5-minute threshold will trigger usage report to server")
+            NSLog("🛡️ Shield will activate at %d minutes", dailyLimitMinutes)
+        } catch {
+            NSLog("❌ Failed to start monitoring %@: %@", bundleId, error.localizedDescription)
+            errorMessage = "Failed to start monitoring \(bundleId): \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Stop Monitoring Individual App
+    func stopMonitoringApp(bundleId: String) {
+        let activityName = DeviceActivityName("TabnovaEMM.app.\(bundleId)")
+        deviceActivityCenter.stopMonitoring([activityName])
+
+        NSLog("🛑 Stopped monitoring %@", bundleId)
+
+        // Clean up shared storage
+        if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
+            sharedDefaults.removeObject(forKey: "monitoredSelection.\(bundleId)")
+            sharedDefaults.removeObject(forKey: "monitoredLimit.\(bundleId)")
+
+            var tokenMappings = sharedDefaults.dictionary(forKey: "appTokenMappings") as? [String: String] ?? [:]
+            tokenMappings.removeValue(forKey: bundleId)
+            sharedDefaults.set(tokenMappings, forKey: "appTokenMappings")
+
+            sharedDefaults.synchronize()
         }
     }
 

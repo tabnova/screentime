@@ -81,24 +81,27 @@ class ShieldManager: ObservableObject {
 
     /// Unshield specific app by bundle identifier
     func unshieldApp(bundleId: String) {
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logSuccess("🔓 UNSHIELDING APP: \(bundleId)")
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🔓 UNSHIELDING APP: %@", bundleId)
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Remove shield from the specific app using its named store
+        let appStore = ManagedSettingsStore(named: ManagedSettingsStore.Name(bundleId))
+        appStore.shield.applications = nil
+        NSLog("🔓 Removed shield from store: %@", bundleId)
 
         shieldedApps.remove(bundleId)
         saveShieldedApps()
 
-        // If no more shielded apps, remove shield entirely
+        // If no more shielded apps, clean up global store too
         if shieldedApps.isEmpty {
             store.shield.applications = nil
             defaults?.removeObject(forKey: "shieldedSelection")
-        } else {
-            // Otherwise, update shield to exclude this app
-            updateShieldFromStoredSelection()
+            NSLog("🔓 All shields removed")
         }
 
-        logSuccess("✅ App \(bundleId) has been unshielded")
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("✅ App %@ has been unshielded", bundleId)
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     // MARK: - Check Shield Status

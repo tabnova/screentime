@@ -24,6 +24,9 @@ class ApplicationAPIService: ObservableObject {
     @Published var errorMessage: String?
 
     private let configManager = ManagedConfigManager.shared
+    private let usageReporter = AppUsageReportingService.shared
+    private let usageTracker = AppUsageTracker.shared
+    private var processedEventIds: Set<String> = []
 
     func fetchApplicationList() {
         guard !configManager.profileId.isEmpty else {
@@ -174,8 +177,9 @@ class ApplicationAPIService: ObservableObject {
         logInfo("Found \(events.count) threshold events")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        // Group events by bundle identifier and sum up the threshold minutes
+        // Group events by bundle identifier and track new events
         var usedTimes: [String: Int] = [:]
+        var newEventsToReport: [(String, Int)] = []
 
         for event in events {
             guard let bundleId = event["bundleIdentifier"] as? String,
@@ -184,6 +188,9 @@ class ApplicationAPIService: ObservableObject {
                 continue
             }
 
+            // Create unique event ID
+            let eventId = "\(bundleId)_\(timestamp)_\(thresholdMinutes)"
+
             let appName = event["applicationName"] as? String ?? bundleId
             let date = Date(timeIntervalSince1970: timestamp)
             let formatter = DateFormatter()
@@ -191,7 +198,30 @@ class ApplicationAPIService: ObservableObject {
 
             logEvent("Threshold hit: \(appName) at \(formatter.string(from: date)) - \(thresholdMinutes) min")
 
-            usedTimes[bundleId, default: 0] = thresholdMinutes
+            // Track cumulative usage from AppUsageTracker
+            if let currentUsage = usageTracker.getUsageForToday(packageName: bundleId) {
+                usedTimes[bundleId] = currentUsage.totalMinutes
+            } else {
+                usedTimes[bundleId, default: 0] += thresholdMinutes
+            }
+
+            // Check if this is a new event that needs to be reported
+            if !processedEventIds.contains(eventId) {
+                newEventsToReport.append((bundleId, thresholdMinutes))
+                processedEventIds.insert(eventId)
+                logInfo("🆕 New threshold event detected for \(appName)")
+            }
+        }
+
+        // Report new events to server
+        for (packageName, thresholdMinutes) in newEventsToReport {
+            usageReporter.sendUsageReport(packageName: packageName, thresholdMinutes: thresholdMinutes) { success in
+                if success {
+                    logSuccess("✅ Usage report sent for \(packageName)")
+                } else {
+                    logError("❌ Failed to send usage report for \(packageName)")
+                }
+            }
         }
 
         // Update applications with the used times
@@ -206,6 +236,9 @@ class ApplicationAPIService: ObservableObject {
 
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logSuccess("Updated \(updatedCount) apps from \(events.count) threshold events")
+        if !newEventsToReport.isEmpty {
+            logInfo("Reported \(newEventsToReport.count) new threshold events to server")
+        }
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 }

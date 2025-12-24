@@ -29,15 +29,21 @@ class ApplicationAPIService: ObservableObject {
     private var processedEventIds: Set<String> = []
 
     func fetchApplicationList() {
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logNetwork("📡 FETCH APPLICATION LIST BUTTON PRESSED")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
         guard !configManager.profileId.isEmpty else {
             errorMessage = "Profile ID is not set in managed configuration"
-            logError("Profile ID is not set")
+            logError("❌ Profile ID is not set")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             return
         }
 
         guard !configManager.authorization.isEmpty else {
             errorMessage = "Authorization token is not set in managed configuration"
-            logError("Authorization token is not set")
+            logError("❌ Authorization token is not set")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             return
         }
 
@@ -46,13 +52,16 @@ class ApplicationAPIService: ObservableObject {
 
         let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/application/list?profile_id=\(configManager.profileId)&type=GET"
 
-        logNetwork("Fetching application list from API")
-        logKey("Using profile ID: \(configManager.profileId)")
+        logNetwork("🌐 Making GET Request")
+        logData("📍 URL: \(urlString)")
+        logKey("🔑 Authorization: ***\(String(configManager.authorization.suffix(20)))")
+        logInfo("🔧 Profile ID: \(configManager.profileId)")
 
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
-            logError("Invalid URL")
+            logError("❌ Invalid URL: \(urlString)")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             return
         }
 
@@ -61,35 +70,56 @@ class ApplicationAPIService: ObservableObject {
         request.setValue(configManager.authorization, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        logInfo("🚀 Sending request...")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
 
+                logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                logNetwork("📥 RECEIVED RESPONSE")
+                logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
                 if let error = error {
                     self?.errorMessage = "Network error: \(error.localizedDescription)"
-                    logError("Network error: \(error.localizedDescription)")
+                    logError("❌ Network error: \(error.localizedDescription)")
+                    logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     return
                 }
 
                 if let httpResponse = response as? HTTPURLResponse {
-                    logNetwork("HTTP Status Code: \(httpResponse.statusCode)")
+                    logNetwork("📊 HTTP Status Code: \(httpResponse.statusCode)")
+                    logData("📋 Response Headers: \(httpResponse.allHeaderFields)")
 
                     guard (200...299).contains(httpResponse.statusCode) else {
                         self?.errorMessage = "Server error: HTTP \(httpResponse.statusCode)"
-                        logError("Server error: HTTP \(httpResponse.statusCode)")
+                        logError("❌ Server returned error status: \(httpResponse.statusCode)")
+
+                        if let data = data, let errorBody = String(data: data, encoding: .utf8) {
+                            logError("📄 Error Response Body: \(errorBody)")
+                        }
+
+                        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                         return
                     }
                 }
 
                 guard let data = data else {
                     self?.errorMessage = "No data received"
-                    logError("No data received")
+                    logError("❌ No data received from server")
+                    logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     return
                 }
 
+                logSuccess("✅ Received data: \(data.count) bytes")
+
                 // Log raw response for debugging
                 if let jsonString = String(data: data, encoding: .utf8) {
-                    logData("Raw JSON Response: \(jsonString)")
+                    logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    logData("📄 Raw JSON Response:")
+                    logData(jsonString)
+                    logData("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 }
 
                 do {
@@ -99,15 +129,19 @@ class ApplicationAPIService: ObservableObject {
                     // Try different possible response formats
                     if let apiResponse = try? decoder.decode(APIResponse.self, from: data) {
                         let appList = apiResponse.applications ?? apiResponse.data ?? []
+                        logInfo("✅ Decoded as APIResponse with \(appList.count) apps")
                         self?.parseApplicationList(appList)
                     } else if let appList = try? decoder.decode([ApplicationResponse].self, from: data) {
+                        logInfo("✅ Decoded as array with \(appList.count) apps")
                         self?.parseApplicationList(appList)
                     } else {
                         throw NSError(domain: "DecodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to decode response"])
                     }
                 } catch {
                     self?.errorMessage = "Failed to parse response: \(error.localizedDescription)"
-                    logError("Parsing error: \(error.localizedDescription)")
+                    logError("❌ Parsing error: \(error.localizedDescription)")
+                    logError("📄 Error details: \(error)")
+                    logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 }
             }
         }.resume()

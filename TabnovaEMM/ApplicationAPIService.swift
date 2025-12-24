@@ -229,38 +229,69 @@ class ApplicationAPIService: ObservableObject {
 
         NSLog("🔵 Finished mapping \(applications.count) applications")
 
-        // Display applications in table format
+        NSLog("🔵 About to log table header")
+        // Display applications in table format - SIMPLIFIED to avoid crash
         logInfo("")
-        logSuccess("📋 PARSED APPLICATIONS TABLE")
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logInfo(String(format: "%-40s %-30s %-15s %-15s", "PACKAGE NAME", "DISPLAY NAME", "DAILY LIMIT", "USED LIMIT"))
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🔵 Logged empty line")
 
+        logSuccess("📋 PARSED APPLICATIONS TABLE")
+        NSLog("🔵 Logged table title")
+
+        // Simplified separator to avoid potential crash
+        let separator = String(repeating: "=", count: 80)
+        logInfo(separator)
+        NSLog("🔵 Logged separator")
+
+        logInfo(String(format: "%-40s %-30s %-15s %-15s", "PACKAGE NAME", "DISPLAY NAME", "DAILY LIMIT", "USED LIMIT"))
+        NSLog("🔵 Logged column headers")
+
+        logInfo(separator)
+        NSLog("🔵 Logged separator 2")
+
+        NSLog("🔵 About to enumerate appList")
         for (index, response) in appList.enumerated() {
+            NSLog("🔵 Processing app index \(index)")
             let app = applications[index]
+
+            NSLog("🔵 Getting display name for \(response.packageName)")
             let displayName = response.displayText ?? getAppNameFromBundleId(response.packageName)
+
+            NSLog("🔵 Creating limit strings")
             let dailyLimitStr = "\(app.dailyLimitTimeNumber) min"
             let usedLimitStr = app.usedLimit > 0 ? "\(app.usedLimit) min" : "0 min"
 
-            logData(String(format: "%-40s %-30s %-15s %-15s",
+            NSLog("🔵 About to truncate displayName: \(displayName)")
+            let truncatedName = displayName.count > 28 ? String(displayName.prefix(26)) + ".." : displayName
+
+            NSLog("🔵 About to format string")
+            let formattedLine = String(format: "%-40s %-30s %-15s %-15s",
                           app.packageName,
-                          displayName.truncated(to: 28),
+                          truncatedName,
                           dailyLimitStr,
-                          usedLimitStr))
+                          usedLimitStr)
+
+            NSLog("🔵 About to log formatted line")
+            logData(formattedLine)
+            NSLog("🔵 Logged app \(index + 1)/\(appList.count)")
         }
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        NSLog("🔵 Finished enumeration, logging final separator")
+        logInfo(separator)
         logInfo("")
 
+        NSLog("🔵 About to log application summary")
         // Log summary for each application
         logSuccess("📱 APPLICATION SUMMARY:")
-        for app in applications {
+        for (index, app) in applications.enumerated() {
+            NSLog("🔵 Logging summary for app \(index + 1)")
             logApp("  • \(app.packageName)")
             logTime("    Daily Limit: \(app.dailyLimitTimeNumber) minutes")
             if app.usedLimit > 0 {
                 logData("    Used Limit: \(app.usedLimit) minutes")
             }
         }
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🔵 Finished summary, logging final separator")
+        logInfo(separator)
 
         // Add default YouTube Music entry if not present in the API response
         let youtubeMusicBundleId = "com.google.ios.youtubemusic"

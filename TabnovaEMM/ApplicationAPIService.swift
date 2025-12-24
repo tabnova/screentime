@@ -197,6 +197,17 @@ class ApplicationAPIService: ObservableObject {
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logInfo("")
 
+        // Log summary for each application
+        logSuccess("📱 APPLICATION SUMMARY:")
+        for app in applications {
+            logApp("  • \(app.packageName)")
+            logTime("    Daily Limit: \(app.dailyLimitTimeNumber) minutes")
+            if app.usedLimit > 0 {
+                logData("    Used Limit: \(app.usedLimit) minutes")
+            }
+        }
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
         // Add default YouTube Music entry if not present in the API response
         let youtubeMusicBundleId = "com.google.ios.youtubemusic"
         if !applications.contains(where: { $0.packageName == youtubeMusicBundleId }) {

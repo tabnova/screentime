@@ -57,7 +57,7 @@ class ApplicationAPIService: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/application/list?profile_id=\(configManager.profileId)&type=GET"
+        let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/application/list?profile_id=\(configManager.profileId)"
 
         logNetwork("🌐 Making GET Request")
         logData("📍 URL: \(urlString)")

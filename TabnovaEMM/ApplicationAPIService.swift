@@ -296,29 +296,12 @@ class ApplicationAPIService: ObservableObject {
         NSLog("🔵 Finished summary, logging final separator")
         logInfo(separator)
 
-        // Add default YouTube Music entry if not present in the API response
-        let youtubeMusicBundleId = "com.google.ios.youtubemusic"
-        if !applications.contains(where: { $0.packageName == youtubeMusicBundleId }) {
-            let youtubeMusicApp = ApplicationData(
-                packageName: youtubeMusicBundleId,
-                dailyLimitTimeNumber: 10,  // 10 minutes daily limit
-                usedLimit: 0,
-                used: 0
-            )
-            applications.append(youtubeMusicApp)
-            logApp("Added default: YouTube Music")
-            logTime("Daily Limit: 10 minutes")
-        }
-
+        // No test data - only use applications from server
         logSuccess("Successfully loaded \(applications.count) applications")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        // Set up monitoring with thresholds for each application
-        let appsToMonitor = applications.map { app in
-            (bundleIdentifier: app.packageName, dailyLimitMinutes: app.dailyLimitTimeNumber)
-        }
-
-        AppUsageManager.shared.startMonitoringApplications(appsToMonitor)
+        logInfo("💡 To monitor apps: Use 'Start Monitoring' button for each app")
+        logInfo("   This will open FamilyActivityPicker to select the app")
+        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Update used times from threshold events
         updateUsedTimesFromThresholdEvents()

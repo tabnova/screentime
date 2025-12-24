@@ -80,34 +80,10 @@ class AppInitializationService: ObservableObject {
         logNetwork("📡 Fetching application list from server...")
         apiService.fetchApplicationList()
 
-        // 2. Auto-add YouTube Music and start monitoring
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            self.setupYouTubeMusicMonitoring()
-        }
+        logSuccess("✅ Initialization complete")
+        logInfo("📱 Use Configuration menu to start monitoring apps")
 
         isInitialized = true
-    }
-
-    // MARK: - Setup YouTube Music monitoring
-    private func setupYouTubeMusicMonitoring() {
-        let youtubeMusicBundleId = "com.google.ios.youtubemusic"
-        let dailyLimit = 10  // 10 minutes
-
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logApp("📱 Setting up YouTube Music Monitoring")
-        logInfo("Package: \(youtubeMusicBundleId)")
-        logTime("Daily Limit: \(dailyLimit) minutes")
-        logTime("Threshold Intervals: 5 minutes")
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        // Start monitoring YouTube Music with 5-minute thresholds
-        let appsToMonitor = [(bundleIdentifier: youtubeMusicBundleId, dailyLimitMinutes: dailyLimit)]
-        AppUsageManager.shared.startMonitoringApplications(appsToMonitor)
-
-        logSuccess("✅ YouTube Music monitoring started")
-        logInfo("Threshold events will fire at 5 and 10 minute intervals")
-        logInfo("Usage data will be automatically sent to server")
-        logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     // MARK: - Main initialization flow

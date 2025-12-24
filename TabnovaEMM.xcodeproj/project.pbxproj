@@ -27,6 +27,7 @@
 		A1000018000000000000001 /* AppUsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000020000000000000001 /* AppUsageTracker.swift */; };
 		A1000019000000000000001 /* AppUsageReportingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000021000000000000001 /* AppUsageReportingService.swift */; };
 		A1000020000000000000001 /* AppInitializationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000022000000000000001 /* AppInitializationService.swift */; };
+		A1000021000000000000001 /* ShieldManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000023000000000000001 /* ShieldManager.swift */; };
 		B1000001000000000000001 /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001000000000000001 /* DeviceActivityMonitorExtension.swift */; };
 		B1000002000000000000001 /* DeviceActivityMonitorExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B3000001000000000000001 /* DeviceActivityMonitorExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -78,6 +79,7 @@
 		A2000020000000000000001 /* AppUsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUsageTracker.swift; sourceTree = "<group>"; };
 		A2000021000000000000001 /* AppUsageReportingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUsageReportingService.swift; sourceTree = "<group>"; };
 		A2000022000000000000001 /* AppInitializationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInitializationService.swift; sourceTree = "<group>"; };
+		A2000023000000000000001 /* ShieldManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldManager.swift; sourceTree = "<group>"; };
 		A3000001000000000000001 /* TabnovaEMM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TabnovaEMM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2000001000000000000001 /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
 		B2000002000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				A2000020000000000000001 /* AppUsageTracker.swift */,
 				A2000021000000000000001 /* AppUsageReportingService.swift */,
 				A2000022000000000000001 /* AppInitializationService.swift */,
+				A2000023000000000000001 /* ShieldManager.swift */,
 				A2000007000000000000001 /* Assets.xcassets */,
 				A2000008000000000000001 /* Info.plist */,
 			);
@@ -278,6 +281,7 @@
 				A1000018000000000000001 /* AppUsageTracker.swift in Sources */,
 				A1000019000000000000001 /* AppUsageReportingService.swift in Sources */,
 				A1000020000000000000001 /* AppInitializationService.swift in Sources */,
+				A1000021000000000000001 /* ShieldManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

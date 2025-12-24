@@ -42,10 +42,12 @@ class AppUsageReportingService {
         logNetwork("Time: \(thresholdMinutes) min")
 
         // Get configuration
-        let config = ManagedConfigManager.shared.getCurrentConfig()
-        guard let email = config["email"] as? String,
-              let profileId = config["profileId"] as? String,
-              let serialNumber = config["serialNumber"] as? String else {
+        let configManager = ManagedConfigManager.shared
+        let email = configManager.email
+        let profileId = configManager.profileId
+        let serialNumber = configManager.serialNumber
+
+        guard !email.isEmpty, !profileId.isEmpty, !serialNumber.isEmpty else {
             logError("❌ Missing required configuration (email, profileId, serialNumber)")
             completion(false)
             return
@@ -121,8 +123,8 @@ class AppUsageReportingService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         // Get authorization token
-        let config = ManagedConfigManager.shared.getCurrentConfig()
-        if let authToken = config["Authorization"] as? String {
+        let authToken = ManagedConfigManager.shared.authorization
+        if !authToken.isEmpty {
             request.setValue(authToken, forHTTPHeaderField: "Authorization")
             logKey("🔑 Authorization token added")
         }
@@ -193,10 +195,12 @@ class AppUsageReportingService {
         logInfo("📊 Found \(allUsageData.count) apps with usage data")
 
         // Get configuration
-        let config = ManagedConfigManager.shared.getCurrentConfig()
-        guard let email = config["email"] as? String,
-              let profileId = config["profileId"] as? String,
-              let serialNumber = config["serialNumber"] as? String else {
+        let configManager = ManagedConfigManager.shared
+        let email = configManager.email
+        let profileId = configManager.profileId
+        let serialNumber = configManager.serialNumber
+
+        guard !email.isEmpty, !profileId.isEmpty, !serialNumber.isEmpty else {
             logError("❌ Missing required configuration")
             completion(false)
             return

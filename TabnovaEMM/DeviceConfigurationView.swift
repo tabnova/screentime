@@ -12,6 +12,7 @@ struct DeviceConfigurationView: View {
     var onNavigateToAppUsage: () -> Void
     var onNavigateToManagedConfig: () -> Void
     var onNavigateToLogs: () -> Void
+    var onNavigateToAppSelection: () -> Void
     @State private var showMenu = false
     @StateObject private var commandService = DeviceCommandService()
     @State private var showCommandAlert = false
@@ -170,6 +171,11 @@ struct DeviceConfigurationView: View {
                                 onNavigateToAppUsage()
                             }
 
+                            MenuButton(title: "Select Apps", icon: "app.badge.checkmark") {
+                                showMenu = false
+                                onNavigateToAppSelection()
+                            }
+
                             MenuButton(title: "Managed Config", icon: "slider.horizontal.3") {
                                 showMenu = false
                                 onNavigateToManagedConfig()
@@ -294,7 +300,8 @@ struct DeviceConfigurationView_Previews: PreviewProvider {
             isEnrolled: .constant(true),
             onNavigateToAppUsage: {},
             onNavigateToManagedConfig: {},
-            onNavigateToLogs: {}
+            onNavigateToLogs: {},
+            onNavigateToAppSelection: {}
         )
     }
 }

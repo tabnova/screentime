@@ -21,6 +21,7 @@ struct ContentView: View {
         case appUsage
         case managedConfig
         case logs
+        case appSelection
     }
     
     var body: some View {
@@ -61,6 +62,9 @@ struct ContentView: View {
                     },
                     onNavigateToLogs: {
                         currentScreen = .logs
+                    },
+                    onNavigateToAppSelection: {
+                        currentScreen = .appSelection
                     }
                 )
             case .appUsage:
@@ -71,9 +75,8 @@ struct ContentView: View {
                 ManagedConfigView()
             case .logs:
                 LogView()
-                ManagedConfigView(onNavigateBack: {
-                    currentScreen = .deviceConfig
-                })
+            case .appSelection:
+                AppSelectionView()
             }
         }
     }

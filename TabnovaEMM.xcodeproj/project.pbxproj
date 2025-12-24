@@ -23,6 +23,7 @@
 		A1000014000000000000001 /* DeviceCommandService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000016000000000000001 /* DeviceCommandService.swift */; };
 		A1000015000000000000001 /* LogManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000017000000000000001 /* LogManager.swift */; };
 		A1000016000000000000001 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000018000000000000001 /* LogView.swift */; };
+		A1000017000000000000001 /* AppSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000019000000000000001 /* AppSelectionView.swift */; };
 		B1000001000000000000001 /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001000000000000001 /* DeviceActivityMonitorExtension.swift */; };
 		B1000002000000000000001 /* DeviceActivityMonitorExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B3000001000000000000001 /* DeviceActivityMonitorExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -70,6 +71,7 @@
 		A2000016000000000000001 /* DeviceCommandService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCommandService.swift; sourceTree = "<group>"; };
 		A2000017000000000000001 /* LogManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogManager.swift; sourceTree = "<group>"; };
 		A2000018000000000000001 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
+		A2000019000000000000001 /* AppSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSelectionView.swift; sourceTree = "<group>"; };
 		A3000001000000000000001 /* TabnovaEMM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TabnovaEMM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2000001000000000000001 /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
 		B2000002000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -123,6 +125,7 @@
 				A2000016000000000000001 /* DeviceCommandService.swift */,
 				A2000017000000000000001 /* LogManager.swift */,
 				A2000018000000000000001 /* LogView.swift */,
+				A2000019000000000000001 /* AppSelectionView.swift */,
 				A2000007000000000000001 /* Assets.xcassets */,
 				A2000008000000000000001 /* Info.plist */,
 			);
@@ -262,6 +265,7 @@
 				A1000014000000000000001 /* DeviceCommandService.swift in Sources */,
 				A1000015000000000000001 /* LogManager.swift in Sources */,
 				A1000016000000000000001 /* LogView.swift in Sources */,
+				A1000017000000000000001 /* AppSelectionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

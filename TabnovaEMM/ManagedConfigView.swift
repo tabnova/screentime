@@ -137,6 +137,40 @@ struct ManagedConfigView: View {
                         }
                         .padding(.horizontal, 20)
 
+                        // Applications List Section
+                        if !apiService.applications.isEmpty {
+                            VStack(spacing: 0) {
+                                // Section Header
+                                HStack {
+                                    Text("Applications List")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(.black)
+                                        .padding(.leading, 20)
+                                        .padding(.vertical, 15)
+                                    Spacer()
+                                    Text("\(apiService.applications.count) apps")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.gray)
+                                        .padding(.trailing, 20)
+                                }
+                                .background(Color.white)
+
+                                Divider()
+
+                                // Application Rows
+                                ForEach(Array(apiService.applications.enumerated()), id: \.offset) { index, app in
+                                    ApplicationRow(application: app)
+                                    if index < apiService.applications.count - 1 {
+                                        Divider().padding(.leading, 20)
+                                    }
+                                }
+                            }
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                            .padding(.horizontal, 20)
+                        }
+
                         Spacer().frame(height: 50)
                     }
                 }
@@ -187,6 +221,70 @@ struct ConfigRow: View {
                 .font(.body)
                 .foregroundColor(value.isEmpty ? .red : .primary)
         }
+    }
+}
+
+struct ApplicationRow: View {
+    let application: ApplicationData
+
+    var body: some View {
+        HStack(spacing: 15) {
+            // App Icon Placeholder
+            Image(systemName: "app.fill")
+                .font(.system(size: 24))
+                .foregroundColor(Color(hex: "1A9B8E"))
+                .frame(width: 40, height: 40)
+                .background(Color(hex: "1A9B8E").opacity(0.1))
+                .cornerRadius(8)
+                .padding(.leading, 20)
+
+            VStack(alignment: .leading, spacing: 4) {
+                // Package Name
+                Text(application.packageName)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.black)
+                    .lineLimit(1)
+
+                // Daily Limit Info
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "1A9B8E"))
+                        Text("Limit: \(application.dailyLimitTimeNumber) min")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+
+                    if application.usedLimit > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hourglass")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
+                            Text("Used: \(application.usedLimit) min")
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Status Badge
+            if application.used > 0 {
+                Text("\(application.used) min")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.orange)
+                    .cornerRadius(12)
+                    .padding(.trailing, 20)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color.white)
     }
 }
 

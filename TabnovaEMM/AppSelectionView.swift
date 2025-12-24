@@ -2,7 +2,7 @@ import SwiftUI
 import FamilyControls
 
 struct AppSelectionView: View {
-    @Environment(\.dismiss) var dismiss
+    var onNavigateBack: (() -> Void)?
     @StateObject private var appUsageManager = AppUsageManager.shared
     @State private var selection = FamilyActivitySelection()
     @State private var showSuccessAlert = false
@@ -20,7 +20,7 @@ struct AppSelectionView: View {
 
                     HStack {
                         Button(action: {
-                            dismiss()
+                            onNavigateBack?()
                         }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 18))
@@ -105,7 +105,7 @@ struct AppSelectionView: View {
         }
         .alert("Monitoring Started", isPresented: $showSuccessAlert) {
             Button("OK") {
-                dismiss()
+                onNavigateBack?()
             }
         } message: {
             Text("Successfully started monitoring \(selection.applicationTokens.count) app(s) with 5-minute thresholds. Check the Logs menu to see threshold events.")

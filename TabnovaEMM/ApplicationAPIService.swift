@@ -8,7 +8,7 @@ struct APIResponse: Codable {
 
 struct ApplicationResponse: Codable {
     let packageName: String
-    let dailyLimitTimeNumber: Int?  // Can be null
+    let dailyLimitTimeNumber: String?  // API returns as string (e.g., "90", "45") or null
     let usedLimit: Int?  // Can be null
     let displayText: String?  // App display name
 
@@ -57,7 +57,7 @@ class ApplicationAPIService: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/application/list?profile_id=\(configManager.profileId)&type=GET"
+        let urlString = "https://b2b.novaemm.com:4500/api/v1/admin/device-profile/application/list?profile_id=\(configManager.profileId)"
 
         logNetwork("🌐 Making GET Request")
         logData("📍 URL: \(urlString)")
@@ -161,8 +161,15 @@ class ApplicationAPIService: ObservableObject {
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         applications = appList.map { response in
-            // Set default 10-minute limit if no limit is specified or limit is 0
-            let dailyLimit = (response.dailyLimitTimeNumber ?? 10) > 0 ? (response.dailyLimitTimeNumber ?? 10) : 10
+            // Parse dailyLimitTimeNumber from string to int
+            // API returns it as string (e.g., "90", "45") or null
+            var dailyLimit = 10  // Default 10 minutes
+            if let limitString = response.dailyLimitTimeNumber,
+               let parsedLimit = Int(limitString),
+               parsedLimit > 0 {
+                dailyLimit = parsedLimit
+            }
+
             let usedLimit = response.usedLimit ?? 0
 
             let app = ApplicationData(

@@ -195,11 +195,11 @@ struct ManagedConfigView: View {
                                 Divider()
 
                                 // Shielded App Rows
-                                ForEach(Array(shieldManager.shieldedApps), id: \.self) { bundleId in
+                                ForEach(Array(shieldManager.shieldedApps.enumerated()), id: \.element) { index, bundleId in
                                     ShieldedAppRow(bundleId: bundleId, onUnshield: {
                                         shieldManager.unshieldApp(bundleId: bundleId)
                                     })
-                                    if bundleId != shieldManager.shieldedApps.last {
+                                    if index < shieldManager.shieldedApps.count - 1 {
                                         Divider().padding(.leading, 20)
                                     }
                                 }

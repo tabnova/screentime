@@ -91,7 +91,7 @@ class AppInitializationService: ObservableObject {
     // MARK: - Setup YouTube Music monitoring
     private func setupYouTubeMusicMonitoring() {
         let youtubeMusicBundleId = "com.google.ios.youtubemusic"
-        let dailyLimit = 10  // 10 minutes
+        let dailyLimit = 35  // 10 minutes
 
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logApp("📱 Setting up YouTube Music Monitoring")

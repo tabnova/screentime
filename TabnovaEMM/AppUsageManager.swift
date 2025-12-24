@@ -234,7 +234,7 @@ class AppUsageManager: ObservableObject {
 
     // MARK: - Monitor with Application Selection
     // Use this method when you have a FamilyActivitySelection from FamilyActivityPicker
-    func startMonitoringWithSelection(_ selection: FamilyActivitySelection, thresholdMinutes: Int) {
+    func startMonitoringWithSelection(_ selection: FamilyActivitySelection, thresholdMinutes: Int, dailyLimitMinutes: Int = 90) {
         guard isAuthorized else {
             logError("Not authorized to monitor applications")
             return
@@ -243,7 +243,18 @@ class AppUsageManager: ObservableObject {
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logSuccess("Starting Monitoring with FamilyActivityPicker Selection")
         logInfo("Selected \(selection.applicationTokens.count) app(s)")
+        logInfo("Daily Limit: \(dailyLimitMinutes) minutes")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Store selection for shield usage
+        if let encoded = try? JSONEncoder().encode(selection) {
+            if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
+                sharedDefaults.set(encoded, forKey: "monitoredSelection")
+                sharedDefaults.set(dailyLimitMinutes, forKey: "monitoredDailyLimit")
+                sharedDefaults.synchronize()
+                logSuccess("Stored selection and daily limit")
+            }
+        }
 
         // Create schedule for daily monitoring (24/7)
         let schedule = DeviceActivitySchedule(
@@ -254,12 +265,13 @@ class AppUsageManager: ObservableObject {
 
         let activityName = DeviceActivityName("TabnovaEMM.DailyActivity")
 
-        // Create events for thresholds at 5-minute intervals
+        // Create events for thresholds at 5-minute intervals + daily limit
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
         let maxThresholds = min(thresholdMinutes / 5, 12) // Max 12 thresholds or up to limit
 
         logInfo("Creating threshold events:")
 
+        // Add 5-minute interval thresholds
         for threshold in 1...maxThresholds {
             let minutes = threshold * 5
             let eventName = DeviceActivityEvent.Name("TabnovaEMM.threshold.\(minutes)min")
@@ -274,20 +286,30 @@ class AppUsageManager: ObservableObject {
             logTime("  ⏰ Threshold at \(minutes) minutes")
         }
 
+        // Add daily limit event for shielding
+        let limitEventName = DeviceActivityEvent.Name("TabnovaEMM.limit.\(dailyLimitMinutes)min")
+        let limitEvent = DeviceActivityEvent(
+            applications: selection.applicationTokens,
+            threshold: DateComponents(minute: dailyLimitMinutes)
+        )
+        events[limitEventName] = limitEvent
+        logWarning("  🛡️ Shield will activate at \(dailyLimitMinutes) minutes (daily limit)")
+
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logSuccess("Created \(events.count) threshold events (5-min intervals)")
-        logInfo("Events will trigger at: 5min, 10min")
+        logSuccess("Created \(events.count) events (\(maxThresholds) thresholds + 1 limit)")
+        logInfo("Events will trigger at: 5min, 10min, ..., \(dailyLimitMinutes)min")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         do {
             try deviceActivityCenter.startMonitoring(activityName, during: schedule, events: events)
-            logSuccess("✅ Started monitoring applications with thresholds")
+            logSuccess("✅ Started monitoring applications with thresholds and shield")
             logInfo("When apps reach thresholds, you'll see:")
             logInfo("  🔔 Event: 'Threshold hit: [App] at [time] - [X] min'")
             logInfo("  ✅ Success: 'Updated [App]: used = [X] min'")
+            logInfo("  🛡️ Shield: 'App blocked at \(dailyLimitMinutes) min'")
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         } catch {
-            errorMessage = "Failed to start monitoring: \(error.localizedDescription)"
+            errorMessage = "Failed to start monitoring: \(error.localizedDescription)")
             logError("Failed to start monitoring: \(error.localizedDescription)")
         }
     }

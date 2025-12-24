@@ -9,6 +9,8 @@
 import DeviceActivity
 import Foundation
 import UserNotifications
+import ManagedSettings
+import FamilyControls
 
 /// Device Activity Monitor Extension
 /// This extension is required by the FamilyControls framework to receive
@@ -84,6 +86,25 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         }
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+        // Check if this is a limit event (for shielding) or threshold event (for reporting)
+        let isLimitEvent = components.contains("limit")
+
+        if isLimitEvent {
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logMessage("🛡️ DAILY LIMIT REACHED - APPLYING SHIELD")
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logMessage("⏱️  Limit: \(thresholdMinutes) minutes")
+            logMessage("🕒 Time: \(getCurrentTimestamp())")
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            // Apply shield using stored FamilyActivitySelection
+            applyShield()
+
+            logMessage("✅ Shield applied to all monitored applications")
+            logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            return
+        }
+
         // Get the monitored applications from shared storage
         guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
               let monitoredApps = sharedDefaults.dictionary(forKey: "monitoredApplications") as? [String: Int],
@@ -118,6 +139,37 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         }
 
         logMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
+    // MARK: - Shield Management
+
+    private func applyShield() {
+        guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
+              let selectionData = sharedDefaults.data(forKey: "monitoredSelection"),
+              let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) else {
+            logMessage("⚠️ Could not load monitored selection for shielding")
+            return
+        }
+
+        logMessage("🛡️ Applying shield to \(selection.applicationTokens.count) application(s)")
+
+        let store = ManagedSettingsStore()
+        store.shield.applications = selection.applicationTokens
+
+        // Mark apps as shielded in shared defaults
+        var shieldedApps = sharedDefaults.array(forKey: "shieldedApps") as? [String] ?? []
+        if let monitoredApps = sharedDefaults.dictionary(forKey: "monitoredApplications") as? [String: Int] {
+            for bundleId in monitoredApps.keys {
+                if !shieldedApps.contains(bundleId) {
+                    shieldedApps.append(bundleId)
+                    logMessage("  🛡️ Shielded: \(bundleId)")
+                }
+            }
+        }
+        sharedDefaults.set(shieldedApps, forKey: "shieldedApps")
+        sharedDefaults.synchronize()
+
+        logMessage("✅ Shield applied successfully")
     }
 
     // MARK: - Helper Functions

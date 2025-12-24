@@ -66,27 +66,35 @@ class ManagedConfigManager: ObservableObject {
 
         // Try to read from managed configuration (MDM) - this will override defaults
         if let managedConfig = UserDefaults.standard.dictionary(forKey: "com.apple.configuration.managed") {
-            logInfo("Reading MDM configuration...")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logSuccess("📱 RECEIVED MANAGED CONFIGURATION FROM MDM")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logData("Managed Config Keys: \(managedConfig.keys.joined(separator: ", "))")
+
             if let auth = managedConfig["Authorization"] as? String {
                 authorization = auth
                 userDefaults.set(auth, forKey: "Authorization")
-                logSuccess("Received Authorization from MDM")
+                logSuccess("✅ Received Authorization from MDM")
+                logKey("   Token: ***\(String(auth.suffix(20)))")
             }
             if let emailValue = managedConfig["email"] as? String {
                 email = emailValue
                 userDefaults.set(emailValue, forKey: "email")
-                logSuccess("Received email from MDM: \(emailValue)")
+                logSuccess("✅ Received email from MDM: \(emailValue)")
             }
             if let profileIdValue = managedConfig["profileId"] as? String {
                 profileId = profileIdValue
                 userDefaults.set(profileIdValue, forKey: "profileId")
-                logSuccess("Received profileId from MDM: \(profileIdValue)")
+                logSuccess("✅ Received profileId from MDM: \(profileIdValue)")
             }
             if let serialNumberValue = managedConfig["serialNumber"] as? String {
                 serialNumber = serialNumberValue
                 userDefaults.set(serialNumberValue, forKey: "serialNumber")
-                logSuccess("Received serialNumber from MDM: \(serialNumberValue)")
+                logSuccess("✅ Received serialNumber from MDM: \(serialNumberValue)")
             }
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        } else {
+            logInfo("ℹ️ No managed configuration found from MDM (using defaults)")
         }
 
         // Print current values

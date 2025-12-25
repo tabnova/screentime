@@ -14,7 +14,7 @@ class AppInitializationService: ObservableObject {
 
     @Published var isInitialized = false
     private let authorizationCenter = AuthorizationCenter.shared
-    private let apiService = ApplicationAPIService()
+    private let apiService = ApplicationAPIService.shared
 
     private init() {}
 

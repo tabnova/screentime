@@ -4,7 +4,7 @@ import ManagedSettings
 
 struct ManagedConfigView: View {
     @StateObject private var configManager = ManagedConfigManager.shared
-    @StateObject private var apiService = ApplicationAPIService()
+    @StateObject private var apiService = ApplicationAPIService.shared
     @StateObject private var shieldManager = ShieldManager.shared
     @StateObject private var appUsageManager = AppUsageManager.shared
     @State private var selectedAppForMonitoring: ApplicationData?

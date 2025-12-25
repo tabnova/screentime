@@ -13,6 +13,11 @@ class ManagedConfigManager: ObservableObject {
 
     private init() {
         loadManagedConfiguration()
+        setupManagedConfigObserver()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func loadManagedConfiguration() {
@@ -134,5 +139,67 @@ class ManagedConfigManager: ObservableObject {
         logInfo("Profile ID: \(profileId.isEmpty ? "Not set" : profileId)")
         logInfo("Serial Number: \(serialNumber.isEmpty ? "Not set" : serialNumber)")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
+    // MARK: - MDM Config Observer
+    private func setupManagedConfigObserver() {
+        // Observe changes to managed configuration
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(managedConfigDidChange),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
+
+        logInfo("📡 MDM config observer set up - will auto-fetch app list on config changes")
+    }
+
+    @objc private func managedConfigDidChange() {
+        // Check if managed configuration actually changed
+        if let managedConfig = UserDefaults.standard.dictionary(forKey: "com.apple.configuration.managed") {
+            var configChanged = false
+
+            // Check for authorization changes
+            if let newAuth = managedConfig["Authorization"] as? String, newAuth != authorization {
+                authorization = newAuth
+                userDefaults.set(newAuth, forKey: "Authorization")
+                configChanged = true
+                logSuccess("✅ MDM Authorization updated")
+            }
+
+            // Check for email changes
+            if let newEmail = managedConfig["email"] as? String, newEmail != email {
+                email = newEmail
+                userDefaults.set(newEmail, forKey: "email")
+                configChanged = true
+                logSuccess("✅ MDM email updated: \(newEmail)")
+            }
+
+            // Check for profileId changes
+            if let newProfileId = managedConfig["profileId"] as? String, newProfileId != profileId {
+                profileId = newProfileId
+                userDefaults.set(newProfileId, forKey: "profileId")
+                configChanged = true
+                logSuccess("✅ MDM profileId updated: \(newProfileId)")
+            }
+
+            // Check for serialNumber changes
+            if let newSerialNumber = managedConfig["serialNumber"] as? String, newSerialNumber != serialNumber {
+                serialNumber = newSerialNumber
+                userDefaults.set(newSerialNumber, forKey: "serialNumber")
+                configChanged = true
+                logSuccess("✅ MDM serialNumber updated: \(newSerialNumber)")
+            }
+
+            // If config changed, fetch updated application list
+            if configChanged {
+                logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                logSuccess("🔄 MDM CONFIG CHANGED - Auto-fetching app list")
+                logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                // Fetch updated application list from server
+                ApplicationAPIService.shared.fetchApplicationList()
+            }
+        }
     }
 }

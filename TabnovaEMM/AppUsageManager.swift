@@ -87,6 +87,7 @@ class AppUsageManager: ObservableObject {
     private let authorizationCenter = AuthorizationCenter.shared
     private let deviceActivityCenter = DeviceActivityCenter()
     private var monitoredApplications: [String: Int] = [:] // bundleIdentifier: dailyLimitMinutes
+    private var midnightResetTimer: Timer?
 
     // Per-app monitoring data
     struct MonitoredAppData: Codable {
@@ -120,6 +121,7 @@ class AppUsageManager: ObservableObject {
 
     init() {
         checkAuthorizationStatus()
+        scheduleMidnightReset()
     }
 
     // MARK: - Authorization
@@ -286,12 +288,12 @@ class AppUsageManager: ObservableObject {
             NSLog("✅ Stored selection for %@", bundleId)
         }
 
-        // Create threshold events every 15 minutes (battery optimization)
+        // Create threshold events every 5 minutes
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
-        let thresholdInterval = 15  // Report every 15 minutes (was 5)
+        let thresholdInterval = 5  // Report every 5 minutes
         let maxThresholds = dailyLimitMinutes / thresholdInterval
 
-        NSLog("📊 Creating threshold events (15-min intervals for battery optimization):")
+        NSLog("📊 Creating threshold events (5-min intervals):")
         for threshold in 1...maxThresholds {
             let minutes = threshold * thresholdInterval
             let eventName = DeviceActivityEvent.Name("TabnovaEMM.\(bundleId).threshold.\(minutes)min")
@@ -371,6 +373,56 @@ class AppUsageManager: ObservableObject {
         }
 
         NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
+    // MARK: - Midnight Reset Timer
+    // Schedule timer to fire at next midnight
+    func scheduleMidnightReset() {
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Get next midnight
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.day! += 1
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+
+        guard let nextMidnight = calendar.date(from: components) else {
+            NSLog("⚠️ Could not calculate next midnight")
+            return
+        }
+
+        let timeUntilMidnight = nextMidnight.timeIntervalSince(now)
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🌙 MIDNIGHT RESET SCHEDULED")
+        NSLog("   Next reset: \(nextMidnight)")
+        NSLog("   Time until reset: \(Int(timeUntilMidnight / 3600))h \(Int((timeUntilMidnight.truncatingRemainder(dividingBy: 3600)) / 60))m")
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Create timer
+        midnightResetTimer = Timer(fireAt: nextMidnight, interval: 0, target: self, selector: #selector(performMidnightReset), userInfo: nil, repeats: false)
+        RunLoop.main.add(midnightResetTimer!, forMode: .common)
+    }
+
+    @objc func performMidnightReset() {
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🌙 MIDNIGHT RESET - Removing all shields")
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Remove all shields
+        ShieldManager.shared.unshieldAll()
+
+        // Clear old usage data (older than 7 days)
+        AppUsageTracker.shared.clearOldData()
+
+        NSLog("✅ Midnight reset complete")
+        NSLog("   All apps re-enabled for new day")
+        NSLog("   Usage tracking continues with fresh daily totals")
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Schedule next midnight reset
+        scheduleMidnightReset()
     }
 
     // MARK: - Monitor with Application Selection

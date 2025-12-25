@@ -76,7 +76,10 @@ class AppInitializationService: ObservableObject {
         logInfo("🚀 Initializing App Monitoring")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        // 1. Fetch application list from server
+        // 1. Clean up old monitoring activities
+        AppUsageManager.shared.stopAllOldMonitoring()
+
+        // 2. Fetch application list from server
         logNetwork("📡 Fetching application list from server...")
         apiService.fetchApplicationList()
 

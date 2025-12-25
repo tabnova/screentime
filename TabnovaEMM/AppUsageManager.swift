@@ -348,6 +348,30 @@ class AppUsageManager: ObservableObject {
         }
     }
 
+    // MARK: - Stop All Old Monitoring
+    // Stops all old-style monitoring activities
+    func stopAllOldMonitoring() {
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🧹 Cleaning up old monitoring activities")
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Stop old DailyActivity monitoring
+        let oldActivityName = DeviceActivityName("TabnovaEMM.DailyActivity")
+        deviceActivityCenter.stopMonitoring([oldActivityName])
+        NSLog("✅ Stopped old DailyActivity monitoring")
+
+        // Clean up old shared defaults
+        if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise") {
+            sharedDefaults.removeObject(forKey: "monitoredSelection")
+            sharedDefaults.removeObject(forKey: "monitoredDailyLimit")
+            sharedDefaults.removeObject(forKey: "monitoredApplications")
+            sharedDefaults.synchronize()
+            NSLog("✅ Cleaned up old shared storage")
+        }
+
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
     // MARK: - Monitor with Application Selection
     // Use this method when you have a FamilyActivitySelection from FamilyActivityPicker
     func startMonitoringWithSelection(_ selection: FamilyActivitySelection, thresholdMinutes: Int, dailyLimitMinutes: Int = 90) {

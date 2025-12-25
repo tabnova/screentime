@@ -21,6 +21,8 @@ struct ApplicationResponse: Codable {
 }
 
 class ApplicationAPIService: ObservableObject {
+    static let shared = ApplicationAPIService()
+
     @Published var applications: [ApplicationData] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -29,6 +31,47 @@ class ApplicationAPIService: ObservableObject {
     private let usageReporter = AppUsageReportingService.shared
     private let usageTracker = AppUsageTracker.shared
     private var processedEventIds: Set<String> = []
+    private let persistenceKey = "persistedApplicationList"
+
+    private init() {
+        loadPersistedApplicationList()
+        updateUsageTimesFromTracker()
+    }
+
+    // MARK: - Persistence
+    private func loadPersistedApplicationList() {
+        if let data = UserDefaults.standard.data(forKey: persistenceKey),
+           let decoded = try? JSONDecoder().decode([ApplicationData].self, from: data) {
+            applications = decoded
+            logInfo("✅ Loaded \(applications.count) persisted applications")
+        }
+    }
+
+    private func saveApplicationList() {
+        if let encoded = try? JSONEncoder().encode(applications) {
+            UserDefaults.standard.set(encoded, forKey: persistenceKey)
+            UserDefaults.standard.synchronize()
+            logInfo("💾 Saved \(applications.count) applications to persistence")
+        }
+    }
+
+    // MARK: - Update Usage Times from Tracker
+    func updateUsageTimesFromTracker() {
+        logInfo("🔄 Updating usage times from tracker...")
+        var updatedCount = 0
+
+        for (index, app) in applications.enumerated() {
+            if let usage = usageTracker.getUsageForToday(packageName: app.packageName) {
+                applications[index].used = usage.totalMinutes
+                updatedCount += 1
+            }
+        }
+
+        if updatedCount > 0 {
+            logSuccess("✅ Updated usage times for \(updatedCount) apps")
+            saveApplicationList()  // Save after updating
+        }
+    }
 
     func fetchApplicationList() {
         // Log at the very start to confirm function is called
@@ -300,6 +343,9 @@ class ApplicationAPIService: ObservableObject {
         logSuccess("Successfully loaded \(applications.count) applications")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+        // Save the application list for persistence
+        saveApplicationList()
+
         // Check for limit changes and update monitored apps
         updateMonitoredAppsWithNewLimits(applications: applications)
 
@@ -340,13 +386,27 @@ class ApplicationAPIService: ObservableObject {
                 NSLog("   Old Limit: %d minutes", currentLimit)
                 NSLog("   New Limit: %d minutes", newLimit)
 
+                // Get current usage from tracker
+                let currentUsage = usageTracker.getUsageForToday(packageName: bundleId)?.totalMinutes ?? 0
+                NSLog("   📊 Current Usage: %d minutes", currentUsage)
+
                 // Check if app is currently shielded
                 let shieldManager = ShieldManager.shared
                 let wasShielded = shieldManager.isAppShielded(bundleId)
 
+                // Determine if app should be re-enabled
                 if wasShielded {
-                    NSLog("   🔓 App was shielded - removing shield")
-                    shieldManager.unshieldApp(bundleId: bundleId)
+                    if newLimit > currentUsage {
+                        NSLog("   ✅ New limit (%d min) > usage (%d min) - RE-ENABLING APP", newLimit, currentUsage)
+                        NSLog("   🔓 Removing shield to allow continued use")
+                        shieldManager.unshieldApp(bundleId: bundleId)
+                    } else {
+                        NSLog("   ⚠️ New limit (%d min) <= usage (%d min) - keeping shield", newLimit, currentUsage)
+                        NSLog("   🛡️ App remains disabled until tomorrow")
+                        // Don't restart monitoring - app stays shielded
+                        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        continue
+                    }
                 }
 
                 // Restart monitoring with new limit
@@ -501,6 +561,11 @@ class ApplicationAPIService: ObservableObject {
                 logSuccess("Updated \(app.packageName): used = \(usedTime) min")
                 updatedCount += 1
             }
+        }
+
+        // Save updated application list
+        if updatedCount > 0 {
+            saveApplicationList()
         }
 
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

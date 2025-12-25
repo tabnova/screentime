@@ -15,7 +15,7 @@ struct ApplicationData: Identifiable, Codable {
 }
 
 struct ApplicationListView: View {
-    @StateObject private var apiService = ApplicationAPIService()
+    @StateObject private var apiService = ApplicationAPIService.shared
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -115,6 +115,9 @@ struct ApplicationListView: View {
                 }
             }
             .onAppear {
+                // Update usage times from tracker first
+                apiService.updateUsageTimesFromTracker()
+                // Then fetch latest from server
                 apiService.fetchApplicationList()
             }
         }

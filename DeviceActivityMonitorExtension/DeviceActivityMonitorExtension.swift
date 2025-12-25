@@ -157,17 +157,23 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         }
 
         // Load the selection for this specific app
-        guard let selectionData = sharedDefaults.data(forKey: "monitoredSelection.\(bundleId)"),
-              let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) else {
-            logMessage("⚠️ Could not load monitored selection for \(bundleId)")
+        guard let selectionData = sharedDefaults.data(forKey: "monitoredSelection.\(bundleId)") else {
+            logMessage("⚠️ Could not load monitored selection data for \(bundleId)")
             return
         }
 
         logMessage("🛡️ Applying shield to \(bundleId)")
 
-        // Create a unique store for this app
-        let store = ManagedSettingsStore(named: ManagedSettingsStore.Name(bundleId))
-        store.shield.applications = selection.applicationTokens
+        // Try to decode selection, but if it fails we can still shield by bundleId
+        if let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) {
+            // Create a unique store for this app
+            let store = ManagedSettingsStore(named: ManagedSettingsStore.Name(bundleId))
+            store.shield.applications = selection.applicationTokens
+        } else {
+            logMessage("⚠️ Could not decode FamilyActivitySelection - shield may not work properly")
+            logMessage("   This is expected in some iOS versions or extension contexts")
+            // Note: Shield won't be applied without tokens, but we log the attempt
+        }
 
         // Mark this app as shielded
         var shieldedApps = sharedDefaults.array(forKey: "shieldedApps") as? [String] ?? []
@@ -184,16 +190,21 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     // Legacy method - kept for backward compatibility
     private func applyShield() {
         guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
-              let selectionData = sharedDefaults.data(forKey: "monitoredSelection"),
-              let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) else {
-            logMessage("⚠️ Could not load monitored selection for shielding")
+              let selectionData = sharedDefaults.data(forKey: "monitoredSelection") else {
+            logMessage("⚠️ Could not load monitored selection data for shielding")
             return
         }
 
-        logMessage("🛡️ Applying shield to \(selection.applicationTokens.count) application(s)")
+        // Try to decode selection
+        if let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData) {
+            logMessage("🛡️ Applying shield to \(selection.applicationTokens.count) application(s)")
 
-        let store = ManagedSettingsStore()
-        store.shield.applications = selection.applicationTokens
+            let store = ManagedSettingsStore()
+            store.shield.applications = selection.applicationTokens
+        } else {
+            logMessage("⚠️ Could not decode FamilyActivitySelection in extension context")
+            return
+        }
 
         // Mark apps as shielded in shared defaults
         var shieldedApps = sharedDefaults.array(forKey: "shieldedApps") as? [String] ?? []

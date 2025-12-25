@@ -286,13 +286,14 @@ class AppUsageManager: ObservableObject {
             NSLog("✅ Stored selection for %@", bundleId)
         }
 
-        // Create threshold events every 5 minutes
+        // Create threshold events every 15 minutes (battery optimization)
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
-        let maxThresholds = dailyLimitMinutes / 5
+        let thresholdInterval = 15  // Report every 15 minutes (was 5)
+        let maxThresholds = dailyLimitMinutes / thresholdInterval
 
-        NSLog("📊 Creating threshold events:")
+        NSLog("📊 Creating threshold events (15-min intervals for battery optimization):")
         for threshold in 1...maxThresholds {
-            let minutes = threshold * 5
+            let minutes = threshold * thresholdInterval
             let eventName = DeviceActivityEvent.Name("TabnovaEMM.\(bundleId).threshold.\(minutes)min")
 
             let event = DeviceActivityEvent(

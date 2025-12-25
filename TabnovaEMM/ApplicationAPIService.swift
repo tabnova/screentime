@@ -299,12 +299,87 @@ class ApplicationAPIService: ObservableObject {
         // No test data - only use applications from server
         logSuccess("Successfully loaded \(applications.count) applications")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Check for limit changes and update monitored apps
+        updateMonitoredAppsWithNewLimits(applications: applications)
+
         logInfo("💡 To monitor apps: Use 'Start Monitoring' button for each app")
         logInfo("   This will open FamilyActivityPicker to select the app")
         logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Update used times from threshold events
         updateUsedTimesFromThresholdEvents()
+    }
+
+    // MARK: - Update Monitored Apps with New Limits
+    private func updateMonitoredAppsWithNewLimits(applications: [ApplicationData]) {
+        guard let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
+              let tokenMappings = sharedDefaults.dictionary(forKey: "appTokenMappings") as? [String: String] else {
+            NSLog("ℹ️ No monitored apps to update")
+            return
+        }
+
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        NSLog("🔄 Checking for limit changes in monitored apps")
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        for (bundleId, _) in tokenMappings {
+            // Find this app in the new application list
+            guard let newAppData = applications.first(where: { $0.packageName == bundleId }) else {
+                NSLog("⚠️ %@ not in server list - keeping current monitoring", bundleId)
+                continue
+            }
+
+            // Get current limit from shared defaults
+            let currentLimit = sharedDefaults.integer(forKey: "monitoredLimit.\(bundleId)")
+            let newLimit = newAppData.dailyLimitTimeNumber
+
+            if currentLimit != newLimit {
+                NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                NSLog("🔄 LIMIT CHANGED for %@", bundleId)
+                NSLog("   Old Limit: %d minutes", currentLimit)
+                NSLog("   New Limit: %d minutes", newLimit)
+
+                // Check if app is currently shielded
+                let shieldManager = ShieldManager.shared
+                let wasShielded = shieldManager.isAppShielded(bundleId)
+
+                if wasShielded {
+                    NSLog("   🔓 App was shielded - removing shield")
+                    shieldManager.unshieldApp(bundleId: bundleId)
+                }
+
+                // Restart monitoring with new limit
+                NSLog("   🔄 Restarting monitoring with new limit")
+
+                // Get the stored token
+                if let selectionData = sharedDefaults.data(forKey: "monitoredSelection.\(bundleId)"),
+                   let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: selectionData),
+                   let token = selection.applicationTokens.first {
+
+                    // Stop old monitoring
+                    AppUsageManager.shared.stopMonitoringApp(bundleId: bundleId)
+
+                    // Start new monitoring with updated limit
+                    AppUsageManager.shared.startMonitoringApp(
+                        bundleId: bundleId,
+                        dailyLimitMinutes: newLimit,
+                        token: token,
+                        displayName: bundleId
+                    )
+
+                    NSLog("   ✅ Updated successfully - new limit: %d min", newLimit)
+                } else {
+                    NSLog("   ⚠️ Could not reload token - manual restart needed")
+                }
+
+                NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            } else {
+                NSLog("✓ %@ limit unchanged (%d min)", bundleId, currentLimit)
+            }
+        }
+
+        NSLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     func updateUsedTimesFromThresholdEvents() {

@@ -65,19 +65,19 @@ class AppUsageTracker: ObservableObject {
         let key = "\(packageName)_\(today)"
 
         if var existing = allUsageData[key] {
-            // Update existing entry - ADD new time to previous total
+            // Update existing entry - SET total (threshold IS the cumulative total)
             let previousTotal = existing.totalMinutes
-            existing.totalMinutes += thresholdMinutes  // Cumulative addition
+            existing.totalMinutes = thresholdMinutes  // ✅ SET to current total (not add)
             existing.totalSeconds = existing.totalMinutes * 60
             existing.lastUpdated = Date()
             allUsageData[key] = existing
 
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            logTime("⏱️  CUMULATIVE USAGE UPDATE")
+            logTime("⏱️  USAGE UPDATE")
             logApp("📱 App: \(packageName)")
             logTime("   Previous Total: \(previousTotal) min")
-            logTime("   + New Threshold: \(thresholdMinutes) min")
-            logSuccess("   = New Total: \(existing.totalMinutes) min (\(existing.totalSeconds) sec)")
+            logSuccess("   Current Total: \(existing.totalMinutes) min (\(existing.totalSeconds) sec)")
+            logInfo("   📅 Date: \(today) (resets daily at midnight)")
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         } else {
             // Create new entry (first threshold hit today)
@@ -89,7 +89,8 @@ class AppUsageTracker: ObservableObject {
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             logSuccess("🆕 FIRST USAGE TODAY")
             logApp("📱 App: \(packageName)")
-            logTime("   Initial Total: \(newUsage.totalMinutes) min (\(newUsage.totalSeconds) sec)")
+            logTime("   Total Today: \(newUsage.totalMinutes) min (\(newUsage.totalSeconds) sec)")
+            logInfo("   📅 Date: \(today)")
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
 

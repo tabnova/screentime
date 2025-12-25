@@ -442,12 +442,48 @@ class ApplicationAPIService: ObservableObject {
         // Report new events to server
         if !newEventsToReport.isEmpty {
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            logNetwork("📤 Sending \(newEventsToReport.count) usage report(s) to server")
+            logNetwork("📤 Preparing to send \(newEventsToReport.count) usage report(s) to server")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            // Log total usage for ALL monitored apps before sending
+            logSuccess("📊 CURRENT USAGE TOTALS FOR ALL MONITORED APPS:")
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            // Get all monitored apps from token mappings
+            if let sharedDefaults = UserDefaults(suiteName: "group.com.tabnova.enterprise"),
+               let tokenMappings = sharedDefaults.dictionary(forKey: "appTokenMappings") as? [String: String] {
+
+                for (bundleId, _) in tokenMappings.sorted(by: { $0.key < $1.key }) {
+                    if let usage = usageTracker.getUsageForToday(packageName: bundleId) {
+                        let displayName = getAppNameFromBundleId(bundleId)
+                        let dailyLimit = sharedDefaults.integer(forKey: "monitoredLimit.\(bundleId)")
+                        let percentage = dailyLimit > 0 ? (usage.totalMinutes * 100) / dailyLimit : 0
+
+                        logApp("  📱 \(displayName)")
+                        logData("     Bundle: \(bundleId)")
+                        logTime("     Total Usage Today: \(usage.totalMinutes) min (\(usage.totalSeconds) sec)")
+                        logData("     Daily Limit: \(dailyLimit) min")
+                        logData("     Used: \(percentage)%")
+
+                        // Highlight apps about to be reported
+                        if newEventsToReport.contains(where: { $0.0 == bundleId }) {
+                            logSuccess("     ✅ Will be reported in this batch")
+                        }
+                        logInfo("     ─────────────────────────────────")
+                    }
+                }
+            }
+
+            logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logNetwork("📡 SENDING REPORTS TO SERVER:")
             logInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
 
         for (packageName, thresholdMinutes) in newEventsToReport {
-            logApp("📱 Reporting: \(packageName) - \(thresholdMinutes) min")
+            let displayName = getAppNameFromBundleId(packageName)
+            logApp("📱 Reporting: \(displayName) (\(packageName))")
+            logTime("   Threshold milestone: \(thresholdMinutes) min")
+
             usageReporter.sendUsageReport(packageName: packageName, thresholdMinutes: thresholdMinutes) { success in
                 if success {
                     logSuccess("✅ Usage report sent for \(packageName)")
